@@ -19,7 +19,7 @@ import {
   HistoricalStateWorkerData,
   RegenErrorType,
 } from "./types.js";
-import {getHistoricalState} from "./getHistoricalState.js";
+import {getHistoricalState} from "./strategies/skip.js";
 
 // most of this setup copied from networkCoreWorker.ts
 

@@ -8,8 +8,8 @@ import {
   stateTransition,
 } from "@lodestar/state-transition";
 import {BeaconConfig} from "@lodestar/config";
-import {IBeaconDb} from "../../db/index.js";
-import {HistoricalStateRegenMetrics, RegenErrorType} from "./types.js";
+import {IBeaconDb} from "../../../db/index.js";
+import {HistoricalStateRegenMetrics, RegenErrorType} from "../types.js";
 
 /**
  * Populate a PubkeyIndexMap with any new entries based on a BeaconState

@@ -3,6 +3,7 @@ import {BeaconConfig} from "@lodestar/config";
 import {LoggerNode, LoggerNodeOpts} from "@lodestar/logger/node";
 import {BeaconStateTransitionMetrics} from "@lodestar/state-transition";
 import {Gauge, Histogram} from "@lodestar/utils";
+import {RootHex, Slot} from "@lodestar/types";
 import {Metrics} from "../../metrics/index.js";
 
 export type HistoricalStateRegenInitModules = {
@@ -33,7 +34,7 @@ export type HistoricalStateWorkerData = {
 export type HistoricalStateWorkerApi = {
   close(): Promise<void>;
   scrapeMetrics(): Promise<string>;
-  getHistoricalState(slot: number): Promise<Uint8Array>;
+  getHistoricalState(slot: number): Promise<Uint8Array | null>;
 };
 
 export enum RegenErrorType {

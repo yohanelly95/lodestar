@@ -19,7 +19,7 @@ import {
   HistoricalStateWorkerData,
   RegenErrorType,
 } from "./types.js";
-import {getHistoricalState} from "./strategies/skip.js";
+import {getHistoricalState, putHistoricalSate} from "./historicalState.js";
 
 // most of this setup copied from networkCoreWorker.ts
 
@@ -222,13 +222,18 @@ const api: HistoricalStateWorkerApi = {
   async getHistoricalState(slot) {
     historicalStateRegenMetrics?.regenRequestCount.inc();
 
-    const stateBytes = await queue.push<Uint8Array>(() =>
-      getHistoricalState(slot, config, db, pubkey2index, historicalStateRegenMetrics)
+    const stateBytes = await queue.push<Uint8Array | null>(() =>
+      getHistoricalState({slot}, {config, db, pubkey2index, logger, metrics: historicalStateRegenMetrics})
     );
-    const result = Transfer(stateBytes, [stateBytes.buffer]) as unknown as Uint8Array;
 
-    historicalStateRegenMetrics?.regenSuccessCount.inc();
-    return result;
+    if (stateBytes) {
+      const result = Transfer(stateBytes, [stateBytes.buffer]) as unknown as Uint8Array;
+
+      historicalStateRegenMetrics?.regenSuccessCount.inc();
+      return result;
+    } else {
+      return null;
+    }
   },
 };
 

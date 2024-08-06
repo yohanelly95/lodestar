@@ -44,8 +44,11 @@ export async function putState(
   });
 }
 
-export async function getState({slot}: {slot: Slot}, {db}: {db: IBeaconDb}): Promise<Uint8Array | null> {
-  return db.stateArchive.getBinary(slot);
+export async function getState(
+  {slot, snapshotSlot, snapshotState}: {slot: Slot; snapshotState: Uint8Array; snapshotSlot: Slot},
+  {db}: {db: IBeaconDb}
+): Promise<Uint8Array | null> {
+  return replayStateDiffsTill({slot, snapshotSlot, snapshotState}, {db});
 }
 
 async function replayStateDiffsTill(
@@ -53,7 +56,7 @@ async function replayStateDiffsTill(
   {db}: {db: IBeaconDb}
 ): Promise<Uint8Array> {
   const intermediateSlots = await db.stateArchive.keys({gt: snapshotSlot, lte: slot});
-  const intermediateStatesDiffs = await Promise.all(intermediateSlots.map((s) => getState({slot: s}, {db})));
+  const intermediateStatesDiffs = await Promise.all(intermediateSlots.map((s) => db.stateArchive.getBinary(s)));
 
   let activeState: Uint8Array = snapshotState;
   for (const intermediateStateDiff of intermediateStatesDiffs) {

@@ -2,8 +2,8 @@ import {RootHex, Slot} from "@lodestar/types";
 import {Logger} from "@lodestar/logger";
 import {BeaconConfig} from "@lodestar/config";
 import {PubkeyIndexMap} from "@lodestar/state-transition";
-import {QueuedStateRegenerator} from "../regen/queued.js";
 import {IBeaconDb} from "../../db/interface.js";
+import {IStateRegenerator} from "../regen/interface.js";
 import {HistoricalStateRegenMetrics, RegenErrorType, StateArchiveStrategy} from "./types.js";
 import {getLastCompatibleSlot, getStateArchiveStrategy} from "./utils/strategies.js";
 import * as snapshot from "./strategies/snapshot.js";
@@ -58,7 +58,7 @@ export async function putHistoricalSate(
     db,
     logger,
     metrics,
-  }: {regen: QueuedStateRegenerator; db: IBeaconDb; logger: Logger; metrics?: HistoricalStateRegenMetrics}
+  }: {regen: IStateRegenerator; db: IBeaconDb; logger: Logger; metrics?: HistoricalStateRegenMetrics}
 ): Promise<void> {
   const strategy = getStateArchiveStrategy(slot);
   logger.debug("Storing state archive", {strategy, slot});

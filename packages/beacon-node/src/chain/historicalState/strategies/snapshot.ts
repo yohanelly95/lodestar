@@ -2,14 +2,13 @@ import {RootHex, Slot} from "@lodestar/types";
 import {Logger} from "@lodestar/logger";
 import {computeEpochAtSlot} from "@lodestar/state-transition";
 import {StateArchiveStrategy} from "../types.js";
-import {QueuedStateRegenerator} from "../../regen/queued.js";
 import {IBeaconDb} from "../../../db/interface.js";
-import {RegenCaller} from "../../regen/interface.js";
+import {IStateRegenerator, RegenCaller} from "../../regen/interface.js";
 import {validateStateArchiveStrategy} from "../utils/strategies.js";
 
 export async function putState(
   {slot, blockRoot}: {slot: Slot; blockRoot: RootHex},
-  {regen, db, logger}: {regen: QueuedStateRegenerator; db: IBeaconDb; logger: Logger}
+  {regen, db, logger}: {regen: IStateRegenerator; db: IBeaconDb; logger: Logger}
 ): Promise<void> {
   validateStateArchiveStrategy(slot, StateArchiveStrategy.Snapshot);
 

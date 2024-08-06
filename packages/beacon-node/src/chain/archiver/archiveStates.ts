@@ -5,9 +5,8 @@ import {computeEpochAtSlot, computeStartSlotAtEpoch} from "@lodestar/state-trans
 import {CheckpointWithHex} from "@lodestar/fork-choice";
 import {IBeaconDb} from "../../db/index.js";
 import {IStateRegenerator} from "../regen/interface.js";
-import {getStateSlotFromBytes} from "../../util/multifork.js";
-import {serializeState} from "../serializeState.js";
-import {AllocSource, BufferPool} from "../../util/bufferPool.js";
+import {BufferPool} from "../../util/bufferPool.js";
+import {putHistoricalSate} from "../historicalState/historicalState.js";
 
 /**
  * Minimum number of epochs between single temp archived states
@@ -87,31 +86,10 @@ export class StatesArchiver {
    * Only the new finalized state is stored to disk
    */
   async archiveState(finalized: CheckpointWithHex): Promise<void> {
-    // starting from Mar 2024, the finalized state could be from disk or in memory
-    const finalizedStateOrBytes = await this.regen.getCheckpointStateOrBytes(finalized);
-    const {rootHex} = finalized;
-    if (!finalizedStateOrBytes) {
-      throw Error(`No state in cache for finalized checkpoint state epoch #${finalized.epoch} root ${rootHex}`);
-    }
-    if (finalizedStateOrBytes instanceof Uint8Array) {
-      const slot = getStateSlotFromBytes(finalizedStateOrBytes);
-      await this.db.stateArchive.putBinary(slot, finalizedStateOrBytes);
-      this.logger.verbose("Archived finalized state bytes", {epoch: finalized.epoch, slot, root: rootHex});
-    } else {
-      // serialize state using BufferPool if provided
-      await serializeState(
-        finalizedStateOrBytes,
-        AllocSource.ARCHIVE_STATE,
-        (stateBytes) => this.db.stateArchive.putBinary(finalizedStateOrBytes.slot, stateBytes),
-        this.bufferPool
-      );
-      // don't delete states before the finalized state, auto-prune will take care of it
-      this.logger.verbose("Archived finalized state", {
-        epoch: finalized.epoch,
-        slot: finalizedStateOrBytes.slot,
-        root: rootHex,
-      });
-    }
+    await putHistoricalSate(
+      {slot: computeStartSlotAtEpoch(finalized.epoch), blockRoot: finalized.rootHex},
+      {db: this.db, regen: this.regen, logger: this.logger}
+    );
   }
 }
 

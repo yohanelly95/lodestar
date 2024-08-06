@@ -13768,6 +13768,11 @@ ws@^8.18.0:
   resolved "https://registry.yarnpkg.com/ws/-/ws-8.18.0.tgz#0d7505a6eafe2b0e712d232b42279f53bc289bbc"
   integrity sha512-8VbfWfHLbbwu3+N6OKsOMpBdT4kXPDDB9cJk2bJ6mh9ucxdlnNvH1e+roYkKmN9Nxw2yjz7VzeO9oOz2zJ04Pw==
 
+xdelta3-wasm@^1.0.0:
+  version "1.0.0"
+  resolved "https://registry.yarnpkg.com/xdelta3-wasm/-/xdelta3-wasm-1.0.0.tgz#43b6ef9e9649830e25713914e40324217f8565fd"
+  integrity sha512-vhS28BhVaE3S/PGG1KQIwjBVqJecuS5Sdh82UAZysbnYaU93KS6l8ZPtsqonNZMeuyFgrGW9D44hh2lwQCsidA==
+
 xml-name-validator@^5.0.0:
   version "5.0.0"
   resolved "https://registry.yarnpkg.com/xml-name-validator/-/xml-name-validator-5.0.0.tgz#82be9b957f7afdacf961e5980f1bf227c0bf7673"

@@ -5,7 +5,7 @@ import {StateArchiveStrategy} from "../types.js";
 import {QueuedStateRegenerator} from "../../regen/queued.js";
 import {IBeaconDb} from "../../../db/interface.js";
 import {RegenCaller} from "../../regen/interface.js";
-import {validateStateArchiveStrategy} from "./utils.js";
+import {validateStateArchiveStrategy} from "../utils/strategies.js";
 
 export async function putState(
   {slot, blockRoot}: {slot: Slot; blockRoot: RootHex},

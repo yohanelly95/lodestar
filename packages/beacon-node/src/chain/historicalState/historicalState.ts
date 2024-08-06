@@ -87,6 +87,7 @@ async function getLastSnapshotState(
   {db, metrics, logger}: {db: IBeaconDb; metrics?: HistoricalStateRegenMetrics; logger: Logger}
 ): Promise<{snapshotState: Uint8Array | null; snapshotSlot: Slot}> {
   const snapshotSlot = getLastCompatibleSlot(slot, StateArchiveStrategy.Snapshot);
+  console.trace({slot, snapshotSlot});
   const snapshotState = await snapshot.getState({slot: snapshotSlot}, {db});
   if (!snapshotState) {
     logger.error("Missing the snapshot state", {snapshotSlot});

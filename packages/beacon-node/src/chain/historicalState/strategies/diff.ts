@@ -1,14 +1,14 @@
 import {RootHex, Slot} from "@lodestar/types";
 import {Logger} from "@lodestar/logger";
 import {computeEpochAtSlot} from "@lodestar/state-transition";
-import {StateArchiveStrategy} from "../types.js";
+import {IBinaryDiffCodec, StateArchiveStrategy} from "../types.js";
 import {IBeaconDb} from "../../../db/interface.js";
 import {IStateRegenerator, RegenCaller} from "../../regen/interface.js";
 import {validateStateArchiveStrategy} from "../utils/strategies.js";
-import {BinaryDiffCodec} from "../utils/binaryDiffCodec.js";
+import {BinaryDiffVCDiffCodec} from "../utils/binaryDiffVCDiffCodec.js";
 
 let codecInitialized: boolean = false;
-const codec = new BinaryDiffCodec();
+const codec: IBinaryDiffCodec = new BinaryDiffVCDiffCodec();
 
 export async function putState(
   {

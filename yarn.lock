@@ -13080,6 +13080,11 @@ validator@^13.7.0:
   resolved "https://registry.yarnpkg.com/validator/-/validator-13.11.0.tgz#23ab3fd59290c61248364eabf4067f04955fbb1b"
   integrity sha512-Ii+sehpSfZy+At5nPdnyMhx78fEoPDkR2XW/zimHEL3MyGJQOCQ7WeP20jPYRz7ZCpcKLB21NxuXHF3bxjStBQ==
 
+vcdiff-wasm@^1.0.10:
+  version "1.0.10"
+  resolved "https://registry.yarnpkg.com/vcdiff-wasm/-/vcdiff-wasm-1.0.10.tgz#e58c53f39fcfd04c5facac6854081b1269fd6080"
+  integrity sha512-07siWwxXYClqAihEtoDYE18f5Z/lsX1ZQnJTVQ3k193bzjKCyOgja7jJBNzzr7jeKBGyF1Byc5CQf8tjPbUHKQ==
+
 vite-node@2.0.4:
   version "2.0.4"
   resolved "https://registry.yarnpkg.com/vite-node/-/vite-node-2.0.4.tgz#5600cc9f0d9c3ff9a64050c6858e7e1b62fb3fcd"

@@ -3,7 +3,6 @@ import {BeaconConfig} from "@lodestar/config";
 import {LoggerNode, LoggerNodeOpts} from "@lodestar/logger/node";
 import {BeaconStateTransitionMetrics} from "@lodestar/state-transition";
 import {Gauge, Histogram} from "@lodestar/utils";
-import {RootHex, Slot} from "@lodestar/types";
 import {Metrics} from "../../metrics/index.js";
 
 export type HistoricalStateRegenInitModules = {
@@ -58,4 +57,10 @@ export enum StateArchiveStrategy {
   Snapshot = "snapshot",
   Diff = "diff",
   Skip = "skip",
+}
+
+export interface IBinaryDiffCodec {
+  init(): Promise<void>;
+  compute(base: Uint8Array, changed: Uint8Array): Uint8Array;
+  apply(base: Uint8Array, delta: Uint8Array): Uint8Array;
 }

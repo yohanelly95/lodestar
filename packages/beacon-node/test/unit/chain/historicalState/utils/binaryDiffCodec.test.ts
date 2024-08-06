@@ -1,25 +1,28 @@
-import {describe, it, beforeEach, expect} from "vitest";
+import fs from "node:fs";
+import path from "node:path";
+import {describe, it, expect, beforeAll} from "vitest";
 import {BeaconState, Epoch, phase0, RootHex, Slot, ssz} from "@lodestar/types";
 import {fromHex} from "@lodestar/utils";
 import {ForkName} from "@lodestar/params";
-import {BinaryDiffCodec} from "../../../../../src/chain/historicalState/utils/binaryDiffCodec.js";
+import {BinaryDiffVCDiffCodec} from "../../../../../src/chain/historicalState/utils/binaryDiffVCDiffCodec.js";
 import {generateState} from "../../../../utils/state.js";
+import {IBinaryDiffCodec} from "../../../../../src/chain/historicalState/types.js";
 
-const testsCases: {title: string; source: () => Uint8Array; input: () => Uint8Array}[] = [
+const testsCases: {title: string; base: () => Uint8Array; changed: () => Uint8Array}[] = [
   {
     title: "Simple string",
-    source: () => Uint8Array.from(Buffer.from("Lodestar")),
-    input: () => Uint8Array.from(Buffer.from("Lodestar Shines")),
+    base: () => Uint8Array.from(Buffer.from("Lodestar")),
+    changed: () => Uint8Array.from(Buffer.from("Lodestar Shines")),
   },
   {
     title: "Array of numbers",
-    source: () => Uint8Array.from([10, 11, 12]),
-    input: () => Uint8Array.from([10, 11, 12, 14, 15]),
+    base: () => Uint8Array.from([10, 11, 12]),
+    changed: () => Uint8Array.from([10, 11, 12, 14, 15]),
   },
   {
     title: "An attestation",
-    source: () => ssz.phase0.Attestation.serialize(ssz.phase0.Attestation.defaultValue()),
-    input: () =>
+    base: () => ssz.phase0.Attestation.serialize(ssz.phase0.Attestation.defaultValue()),
+    changed: () =>
       ssz.phase0.Attestation.serialize(
         attestationFromValues(
           4_000_000,
@@ -31,37 +34,52 @@ const testsCases: {title: string; source: () => Uint8Array; input: () => Uint8Ar
   },
   {
     title: "Phase 0 beacon state",
-    source: () => {
+    base: () => {
       const state = generateState({slot: 0});
       return ssz.phase0.BeaconState.serialize(state.toValue() as BeaconState<ForkName.phase0>);
     },
-    input: () => {
+    changed: () => {
       const state = generateState({slot: 0});
       state.balances.set(0, state.balances.get(0) + 1000);
       state.commit();
       return ssz.phase0.BeaconState.serialize(state.toValue() as BeaconState<ForkName.phase0>);
     },
   },
+  {
+    title: "Sepolia state",
+    base: () => {
+      return Buffer.from(
+        fs.readFileSync(path.join(import.meta.dirname, "../../../../fixtures/binaryDiff/source.txt"), "utf8"),
+        "hex"
+      );
+    },
+    changed: () => {
+      return Buffer.from(
+        fs.readFileSync(path.join(import.meta.dirname, "../../../../fixtures/binaryDiff/input.txt"), "utf8"),
+        "hex"
+      );
+    },
+  },
 ];
 
 describe("BinaryDiffCodec", () => {
-  let codec: BinaryDiffCodec;
+  let codec: IBinaryDiffCodec;
 
-  beforeEach(async () => {
-    codec = new BinaryDiffCodec();
+  beforeAll(async () => {
+    codec = new BinaryDiffVCDiffCodec();
     await codec.init();
   });
 
-  it.each(testsCases)("$title", ({source, input}) => {
-    const _source = source();
-    const _input = input();
+  it.each(testsCases)("$title", ({base, changed}) => {
+    const _base = base();
+    const _changed = changed();
 
-    const delta = codec.compute(_input, _source);
-    const result = codec.apply(_source, delta);
+    const delta = codec.compute(_base, _changed);
+    const result = codec.apply(_base, delta);
 
     expect(delta).toBeInstanceOf(Uint8Array);
     expect(delta).not.toHaveLength(0);
-    expect(result).toStrictEqual(_input);
+    expect(Buffer.from(result).toString("hex")).toStrictEqual(Buffer.from(_changed).toString("hex"));
   });
 });
 

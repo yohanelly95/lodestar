@@ -33,7 +33,7 @@ export async function putState(
   );
 
   const activeState = await replayStateDiffsTill({slot, snapshotSlot, snapshotState}, {db});
-  const diff = codec.compute(currentState.serialize(), activeState);
+  const diff = codec.compute(activeState, currentState.serialize());
   await db.stateArchive.putBinary(slot, diff);
 
   logger.verbose("State stored as diff", {
@@ -47,6 +47,11 @@ export async function getState(
   {slot, snapshotSlot, snapshotState}: {slot: Slot; snapshotState: Uint8Array; snapshotSlot: Slot},
   {db}: {db: IBeaconDb}
 ): Promise<Uint8Array | null> {
+  if (!codecInitialized) {
+    await codec.init();
+    codecInitialized = true;
+  }
+
   return replayStateDiffsTill({slot, snapshotSlot, snapshotState}, {db});
 }
 
@@ -54,7 +59,7 @@ async function replayStateDiffsTill(
   {slot, snapshotSlot, snapshotState}: {slot: Slot; snapshotState: Uint8Array; snapshotSlot: Slot},
   {db}: {db: IBeaconDb}
 ): Promise<Uint8Array> {
-  const intermediateSlots = await db.stateArchive.keys({gt: snapshotSlot, lte: slot});
+  const intermediateSlots = await db.stateArchive.keys({gt: snapshotSlot, lte: slot, limit: 100});
   const intermediateStatesDiffs = await Promise.all(intermediateSlots.map((s) => db.stateArchive.getBinary(s)));
 
   let activeState: Uint8Array = snapshotState;

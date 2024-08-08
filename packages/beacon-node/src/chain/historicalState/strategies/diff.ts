@@ -1,9 +1,8 @@
-import {RootHex, Slot} from "@lodestar/types";
+import {Slot} from "@lodestar/types";
 import {Logger} from "@lodestar/logger";
 import {computeEpochAtSlot} from "@lodestar/state-transition";
 import {IBinaryDiffCodec, StateArchiveStrategy} from "../types.js";
 import {IBeaconDb} from "../../../db/interface.js";
-import {IStateRegenerator, RegenCaller} from "../../regen/interface.js";
 import {validateStateArchiveStrategy} from "../utils/strategies.js";
 import {BinaryDiffVCDiffCodec} from "../utils/binaryDiffVCDiffCodec.js";
 
@@ -13,11 +12,11 @@ const codec: IBinaryDiffCodec = new BinaryDiffVCDiffCodec();
 export async function putState(
   {
     slot,
-    blockRoot,
+    state,
     snapshotSlot,
     snapshotState,
-  }: {slot: Slot; blockRoot: RootHex; snapshotState: Uint8Array; snapshotSlot: Slot},
-  {regen, db, logger}: {regen: IStateRegenerator; db: IBeaconDb; logger: Logger}
+  }: {slot: Slot; state: Uint8Array; snapshotState: Uint8Array; snapshotSlot: Slot},
+  {db, logger}: {db: IBeaconDb; logger: Logger}
 ): Promise<void> {
   validateStateArchiveStrategy(slot, StateArchiveStrategy.Diff);
 
@@ -25,21 +24,14 @@ export async function putState(
     await codec.init();
     codecInitialized = true;
   }
-  const currentState = await regen.getBlockSlotState(
-    blockRoot,
-    slot,
-    {dontTransferCache: false},
-    RegenCaller.historicalState
-  );
+  const previousState = await replayStateDiffsTill({slot, snapshotSlot, snapshotState}, {db});
+  const diff = codec.compute(previousState, state);
 
-  const activeState = await replayStateDiffsTill({slot, snapshotSlot, snapshotState}, {db});
-  const diff = codec.compute(activeState, currentState.serialize());
   await db.stateArchive.putBinary(slot, diff);
 
   logger.verbose("State stored as diff", {
     epoch: computeEpochAtSlot(slot),
     slot,
-    blockRoot,
   });
 }
 
@@ -59,7 +51,7 @@ async function replayStateDiffsTill(
   {slot, snapshotSlot, snapshotState}: {slot: Slot; snapshotState: Uint8Array; snapshotSlot: Slot},
   {db}: {db: IBeaconDb}
 ): Promise<Uint8Array> {
-  const intermediateSlots = await db.stateArchive.keys({gt: snapshotSlot, lte: slot, limit: 100});
+  const intermediateSlots = await db.stateArchive.keys({gt: snapshotSlot, lte: slot});
   const intermediateStatesDiffs = await Promise.all(intermediateSlots.map((s) => db.stateArchive.getBinary(s)));
 
   let activeState: Uint8Array = snapshotState;

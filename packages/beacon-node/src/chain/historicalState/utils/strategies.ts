@@ -4,6 +4,7 @@ import {SLOTS_PER_EPOCH} from "@lodestar/params";
 import {StateArchiveStrategy} from "../types.js";
 
 export const SNAPSHOT_STATE_EVERY_EPOCH = 1000;
+export const DIFF_STATE_EVERY_EPOCH = 10;
 
 export function getStateArchiveStrategy(slot: Slot): StateArchiveStrategy {
   const epoch = computeEpochAtSlot(slot);
@@ -11,7 +12,7 @@ export function getStateArchiveStrategy(slot: Slot): StateArchiveStrategy {
 
   if (isStartOfEpoch && epoch % SNAPSHOT_STATE_EVERY_EPOCH === 0) return StateArchiveStrategy.Snapshot;
 
-  if (isStartOfEpoch) return StateArchiveStrategy.Diff;
+  if (isStartOfEpoch && epoch % DIFF_STATE_EVERY_EPOCH === 0) return StateArchiveStrategy.Diff;
 
   return StateArchiveStrategy.Skip;
 }
@@ -20,7 +21,7 @@ export function validateStateArchiveStrategy(slot: Slot, expected: StateArchiveS
   const actual = getStateArchiveStrategy(slot);
 
   if (actual !== expected) {
-    throw new Error(`Invalid archive strategy. slot=${slot} actual=${actual} expected=${expected}`);
+    throw new Error(`Invalid state archive strategy for slot=${slot}. actual=${actual} expected=${expected}`);
   }
 }
 
@@ -41,7 +42,7 @@ export function getLastCompatibleSlot(slot: Slot, strategy: StateArchiveStrategy
         validateStateArchiveStrategy(slot, StateArchiveStrategy.Diff);
         return computeStartSlotAtEpoch(epoch);
       } catch {
-        return Math.max(0, computeStartSlotAtEpoch(epoch - 1));
+        return Math.max(0, computeStartSlotAtEpoch(epoch - DIFF_STATE_EVERY_EPOCH));
       }
     }
     case StateArchiveStrategy.Skip: {

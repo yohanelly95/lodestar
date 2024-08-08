@@ -3,7 +3,7 @@ import {Logger} from "@lodestar/logger";
 import {BeaconConfig} from "@lodestar/config";
 import {PubkeyIndexMap} from "@lodestar/state-transition";
 import {IBeaconDb} from "../../db/interface.js";
-import {IStateRegenerator} from "../regen/interface.js";
+import {IStateRegenerator, RegenCaller} from "../regen/interface.js";
 import {HistoricalStateRegenMetrics, RegenErrorType, StateArchiveStrategy} from "./types.js";
 import {getLastCompatibleSlot, getStateArchiveStrategy} from "./utils/strategies.js";
 import * as snapshot from "./strategies/snapshot.js";
@@ -72,7 +72,14 @@ export async function putHistoricalSate(
       const {snapshotSlot, snapshotState} = await getLastSnapshotState(slot, {db, metrics, logger});
       if (!snapshotState) return;
 
-      await diff.putState({slot, blockRoot, snapshotSlot, snapshotState}, {regen, db, logger});
+      const state = await regen.getBlockSlotState(
+        blockRoot,
+        slot,
+        {dontTransferCache: false},
+        RegenCaller.historicalState
+      );
+
+      await diff.putState({slot, state: state.serialize(), snapshotSlot, snapshotState}, {db, logger});
       break;
     }
     case StateArchiveStrategy.Skip: {
@@ -87,7 +94,6 @@ async function getLastSnapshotState(
   {db, metrics, logger}: {db: IBeaconDb; metrics?: HistoricalStateRegenMetrics; logger: Logger}
 ): Promise<{snapshotState: Uint8Array | null; snapshotSlot: Slot}> {
   const snapshotSlot = getLastCompatibleSlot(slot, StateArchiveStrategy.Snapshot);
-  console.trace({slot, snapshotSlot});
   const snapshotState = await snapshot.getState({slot: snapshotSlot}, {db});
   if (!snapshotState) {
     logger.error("Missing the snapshot state", {snapshotSlot});
@@ -112,4 +118,34 @@ async function getLastDiffState(
     return {diffSlot, diffState: null};
   }
   return {diffSlot, diffState};
+}
+
+export async function getLastStoredState({
+  db,
+}: {
+  db: IBeaconDb;
+}): Promise<{state: Uint8Array | null; slot: Slot | null}> {
+  const lastStoredSlot = await db.stateArchive.lastKey();
+  if (lastStoredSlot === null) {
+    return {state: null, slot: null};
+  }
+
+  const strategy = getStateArchiveStrategy(lastStoredSlot);
+  switch (strategy) {
+    case StateArchiveStrategy.Snapshot:
+      return {state: await snapshot.getState({slot: lastStoredSlot}, {db}), slot: lastStoredSlot};
+    case StateArchiveStrategy.Diff: {
+      const snapshotSlot = getLastCompatibleSlot(lastStoredSlot, StateArchiveStrategy.Snapshot);
+      const snapshotState = await snapshot.getState({slot: snapshotSlot}, {db});
+      if (!snapshotState) {
+        throw new Error(`Missing the snapshot state slot=${snapshotSlot}`);
+      }
+      return {
+        state: await diff.getState({slot: lastStoredSlot, snapshotSlot, snapshotState}, {db}),
+        slot: lastStoredSlot,
+      };
+    }
+    case StateArchiveStrategy.Skip:
+      throw new Error(`Unexpected stored slot for a non epoch slot=${lastStoredSlot}`);
+  }
 }

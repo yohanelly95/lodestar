@@ -43,7 +43,7 @@ export enum RegenErrorType {
 }
 
 export type HistoricalStateRegenMetrics = BeaconStateTransitionMetrics & {
-  regenTime: Histogram;
+  regenTime: Histogram<{strategy: StateArchiveStrategy}>;
   loadStateTime: Histogram;
   stateTransitionTime: Histogram;
   stateTransitionBlocks: Histogram;

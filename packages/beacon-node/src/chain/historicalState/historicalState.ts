@@ -26,27 +26,38 @@ export async function getHistoricalState(
     metrics?: HistoricalStateRegenMetrics;
   }
 ): Promise<Uint8Array | null> {
+  const regenTimer = metrics?.regenTime.startTimer();
   const strategy = getStateArchiveStrategy(slot);
   logger.debug("Fetching state archive", {strategy, slot});
 
   switch (strategy) {
     case StateArchiveStrategy.Snapshot: {
-      return snapshot.getState({slot}, {db});
+      const state = snapshot.getState({slot}, {db});
+      regenTimer?.({strategy: StateArchiveStrategy.Snapshot});
+
+      return state;
     }
     case StateArchiveStrategy.Diff: {
       const {snapshotSlot, snapshotState} = await getLastSnapshotState(slot, {db, metrics, logger});
       if (!snapshotState) return null;
 
-      return diff.getState({slot, snapshotSlot, snapshotState}, {db});
+      const state = diff.getState({slot, snapshotSlot, snapshotState}, {db});
+
+      regenTimer?.({strategy: StateArchiveStrategy.Diff});
+
+      return state;
     }
     case StateArchiveStrategy.Skip: {
       const {diffState, diffSlot} = await getLastDiffState(slot, {db, metrics, logger});
       if (!diffState) return null;
 
-      return skip.getState(
+      const state = skip.getState(
         {slot, lastFullSlot: diffSlot, lastFullState: diffState},
         {config, db, metrics, pubkey2index}
       );
+      regenTimer?.({strategy: StateArchiveStrategy.Skip});
+
+      return state;
     }
   }
 }

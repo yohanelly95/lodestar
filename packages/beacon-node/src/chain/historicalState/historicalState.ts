@@ -149,3 +149,19 @@ export async function getLastStoredState({
       throw new Error(`Unexpected stored slot for a non epoch slot=${lastStoredSlot}`);
   }
 }
+
+/**
+ * Used to store state initialized from the checkpoint as anchor state
+ */
+export async function storeArbitraryState(
+  {slot, state}: {slot: Slot; state: Uint8Array},
+  {db}: {db: IBeaconDb}
+): Promise<void> {
+  const lastSlot = await db.stateArchive.lastKey();
+
+  if (lastSlot === null) {
+    // diff.putState({});
+  } else {
+    await db.stateArchive.putBinary(slot, state);
+  }
+}

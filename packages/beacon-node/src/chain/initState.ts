@@ -48,7 +48,9 @@ export async function persistAnchorState(
       db.stateArchive.putBinary(anchorState.slot, anchorStateBytes),
     ]);
   } else {
-    await db.stateArchive.putBinary(anchorState.slot, anchorStateBytes);
+    // TODO: he archiver will persist the state using right strategy
+    // Here we don't know if anchor should be saved as snapshot or diff or other strategy
+    // await db.stateArchive.add(anchorState);
   }
 }
 

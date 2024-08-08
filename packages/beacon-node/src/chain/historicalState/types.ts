@@ -51,6 +51,8 @@ export type HistoricalStateRegenMetrics = BeaconStateTransitionMetrics & {
   regenRequestCount: Gauge;
   regenSuccessCount: Gauge;
   regenErrorCount: Gauge<{reason: RegenErrorType}>;
+  stateDiffSize: Gauge;
+  stateSnapshotSize: Gauge;
 };
 
 export enum StateArchiveStrategy {

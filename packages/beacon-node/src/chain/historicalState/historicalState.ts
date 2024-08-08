@@ -90,7 +90,7 @@ export async function putHistoricalSate(
         RegenCaller.historicalState
       );
 
-      await diff.putState({slot, state: state.serialize(), snapshotSlot, snapshotState}, {db, logger});
+      await diff.putState({slot, state: state.serialize(), snapshotSlot, snapshotState}, {db, logger, metrics});
       break;
     }
     case StateArchiveStrategy.Skip: {

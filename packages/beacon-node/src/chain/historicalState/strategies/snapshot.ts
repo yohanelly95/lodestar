@@ -8,13 +8,21 @@ import {validateStateArchiveStrategy} from "../utils/strategies.js";
 
 export async function putState(
   {slot, blockRoot}: {slot: Slot; blockRoot: RootHex},
-  {regen, db, logger}: {regen: IStateRegenerator; db: IBeaconDb; logger: Logger}
+  {
+    regen,
+    db,
+    logger,
+    metrics,
+  }: {regen: IStateRegenerator; db: IBeaconDb; logger: Logger; metrics?: HistoricalStateRegenMetrics}
 ): Promise<void> {
   validateStateArchiveStrategy(slot, StateArchiveStrategy.Snapshot);
 
   const state = await regen.getBlockSlotState(blockRoot, slot, {dontTransferCache: false}, RegenCaller.historicalState);
+  const serialized = state.serialize();
 
-  await db.stateArchive.putBinary(slot, state.serialize());
+  metrics?.stateSnapshotSize.set(serialized.byteLength);
+
+  await db.stateArchive.putBinary(slot, serialized);
   logger.verbose("State stored as snapshot", {
     epoch: computeEpochAtSlot(slot),
     slot,

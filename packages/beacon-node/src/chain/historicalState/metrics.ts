@@ -128,5 +128,13 @@ export function getMetrics(metricsRegister: RegistryMetricCreator): HistoricalSt
       help: "Count of failed historical state regen",
       labelNames: ["reason"],
     }),
+    stateDiffSize: metricsRegister.gauge({
+      name: "lodestar_historical_state_diff_size",
+      help: "Size of the state diff in bytes",
+    }),
+    stateSnapshotSize: metricsRegister.gauge({
+      name: "lodestar_historical_state_snapshot_size",
+      help: "Size of the state snapshot in bytes",
+    }),
   };
 }

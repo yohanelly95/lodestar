@@ -1,7 +1,7 @@
 import {Slot} from "@lodestar/types";
 import {Logger} from "@lodestar/logger";
 import {computeEpochAtSlot} from "@lodestar/state-transition";
-import {IBinaryDiffCodec, StateArchiveStrategy} from "../types.js";
+import {HistoricalStateRegenMetrics, IBinaryDiffCodec, StateArchiveStrategy} from "../types.js";
 import {IBeaconDb} from "../../../db/interface.js";
 import {validateStateArchiveStrategy} from "../utils/strategies.js";
 import {BinaryDiffVCDiffCodec} from "../utils/binaryDiffVCDiffCodec.js";
@@ -16,7 +16,7 @@ export async function putState(
     snapshotSlot,
     snapshotState,
   }: {slot: Slot; state: Uint8Array; snapshotState: Uint8Array; snapshotSlot: Slot},
-  {db, logger}: {db: IBeaconDb; logger: Logger}
+  {db, logger, metrics}: {db: IBeaconDb; logger: Logger; metrics?: HistoricalStateRegenMetrics}
 ): Promise<void> {
   validateStateArchiveStrategy(slot, StateArchiveStrategy.Diff);
 
@@ -26,6 +26,8 @@ export async function putState(
   }
   const previousState = await replayStateDiffsTill({slot, snapshotSlot, snapshotState}, {db});
   const diff = codec.compute(previousState, state);
+
+  metrics?.stateDiffSize.set(diff.byteLength);
 
   await db.stateArchive.putBinary(slot, diff);
 

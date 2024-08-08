@@ -62,12 +62,37 @@ const testsCases: {title: string; base: () => Uint8Array; changed: () => Uint8Ar
   },
 ];
 
+const binaryValue = (s: string): Uint8Array => Uint8Array.from(Buffer.from(s, "utf8"));
+
 describe("BinaryDiffCodec", () => {
   let codec: IBinaryDiffCodec;
+  let multiDiffData: Record<string, {value: Uint8Array; diff: Uint8Array}>;
 
   beforeAll(async () => {
     codec = new BinaryDiffVCDiffCodec();
     await codec.init();
+
+    multiDiffData = {
+      snapshot: {
+        value: binaryValue("initial value"),
+        diff: Buffer.alloc(0),
+      },
+      diff1: {
+        value: binaryValue("initial value + diff 1"),
+        diff: codec.compute(binaryValue("initial value"), binaryValue("initial value + diff 1")),
+      },
+      diff2: {
+        value: binaryValue("initial value + diff 1 + diff 2"),
+        diff: codec.compute(binaryValue("initial value + diff 1"), binaryValue("initial value + diff 1 + diff 2")),
+      },
+      diff3: {
+        value: binaryValue("initial value + diff 1 + diff 2 + diff 3"),
+        diff: codec.compute(
+          binaryValue("initial value + diff 1 + diff 2"),
+          binaryValue("initial value + diff 1 + diff 2 + diff 3")
+        ),
+      },
+    };
   });
 
   it.each(testsCases)("$title", ({base, changed}) => {
@@ -80,6 +105,27 @@ describe("BinaryDiffCodec", () => {
     expect(delta).toBeInstanceOf(Uint8Array);
     expect(delta).not.toHaveLength(0);
     expect(Buffer.from(result).toString("hex")).toStrictEqual(Buffer.from(_changed).toString("hex"));
+  });
+
+  describe("multiple diffs", () => {
+    it("should produce valid value for one diff", () => {
+      expect(codec.apply(multiDiffData.snapshot.value, multiDiffData.diff1.diff)).toEqual(multiDiffData.diff1.value);
+    });
+
+    it("should produce valid value for two diffs", () => {
+      expect(
+        codec.apply(codec.apply(multiDiffData.snapshot.value, multiDiffData.diff1.diff), multiDiffData.diff2.diff)
+      ).toEqual(multiDiffData.diff2.value);
+    });
+
+    it("should produce valid value for three diffs", () => {
+      expect(
+        codec.apply(
+          codec.apply(codec.apply(multiDiffData.snapshot.value, multiDiffData.diff1.diff), multiDiffData.diff2.diff),
+          multiDiffData.diff3.diff
+        )
+      ).toEqual(multiDiffData.diff3.value);
+    });
   });
 });
 

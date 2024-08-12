@@ -140,7 +140,7 @@ export async function putState(
   {slot, blockRoot}: {slot: Slot; blockRoot: RootHex},
   {logger}: {logger: Logger}
 ): Promise<void> {
-  validateStateArchiveStrategy(slot, StateArchiveStrategy.Skip);
+  validateStateArchiveStrategy(slot, StateArchiveStrategy.BlockReplay);
 
   logger.verbose("State archive skipped for", {
     epoch: computeEpochAtSlot(slot),

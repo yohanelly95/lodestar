@@ -14,7 +14,7 @@ export function getStateArchiveStrategy(slot: Slot): StateArchiveStrategy {
 
   if (isStartOfEpoch && epoch % DIFF_STATE_EVERY_EPOCH === 0) return StateArchiveStrategy.Diff;
 
-  return StateArchiveStrategy.Skip;
+  return StateArchiveStrategy.BlockReplay;
 }
 
 export function validateStateArchiveStrategy(slot: Slot, expected: StateArchiveStrategy): void {
@@ -45,7 +45,7 @@ export function getLastCompatibleSlot(slot: Slot, strategy: StateArchiveStrategy
         return Math.max(0, computeStartSlotAtEpoch(epoch - DIFF_STATE_EVERY_EPOCH));
       }
     }
-    case StateArchiveStrategy.Skip: {
+    case StateArchiveStrategy.BlockReplay: {
       // Return second last slot if last slot is start of epoch
       if (computeStartSlotAtEpoch(epoch) === slot) return slot - 2;
 

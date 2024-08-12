@@ -58,7 +58,7 @@ export type HistoricalStateRegenMetrics = BeaconStateTransitionMetrics & {
 export enum StateArchiveStrategy {
   Snapshot = "snapshot",
   Diff = "diff",
-  Skip = "skip",
+  BlockReplay = "blockReplay",
 }
 
 export interface IBinaryDiffCodec {

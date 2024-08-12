@@ -8,7 +8,7 @@ import {HistoricalStateRegenMetrics, RegenErrorType, StateArchiveStrategy} from 
 import {getLastCompatibleSlot, getStateArchiveStrategy} from "./utils/strategies.js";
 import * as snapshot from "./strategies/snapshot.js";
 import * as diff from "./strategies/diff.js";
-import * as skip from "./strategies/skip.js";
+import * as blockReplay from "./strategies/blockReplay.js";
 
 export async function getHistoricalState(
   {slot}: {slot: Slot},
@@ -47,15 +47,15 @@ export async function getHistoricalState(
 
       return state;
     }
-    case StateArchiveStrategy.Skip: {
+    case StateArchiveStrategy.BlockReplay: {
       const {diffState, diffSlot} = await getLastDiffState(slot, {db, metrics, logger});
       if (!diffState) return null;
 
-      const state = skip.getState(
+      const state = blockReplay.getState(
         {slot, lastFullSlot: diffSlot, lastFullState: diffState},
         {config, db, metrics, pubkey2index}
       );
-      regenTimer?.({strategy: StateArchiveStrategy.Skip});
+      regenTimer?.({strategy: StateArchiveStrategy.BlockReplay});
 
       return state;
     }
@@ -93,8 +93,8 @@ export async function putHistoricalSate(
       await diff.putState({slot, state: state.serialize(), snapshotSlot, snapshotState}, {db, logger, metrics});
       break;
     }
-    case StateArchiveStrategy.Skip: {
-      await skip.putState({slot, blockRoot}, {logger});
+    case StateArchiveStrategy.BlockReplay: {
+      await blockReplay.putState({slot, blockRoot}, {logger});
       break;
     }
   }
@@ -156,7 +156,7 @@ export async function getLastStoredState({
         slot: lastStoredSlot,
       };
     }
-    case StateArchiveStrategy.Skip:
+    case StateArchiveStrategy.BlockReplay:
       throw new Error(`Unexpected stored slot for a non epoch slot=${lastStoredSlot}`);
   }
 }

@@ -12,30 +12,13 @@ To overcome the storage problem for the archive nodes we implemented following a
 
 **Approach**
 
-Assume we have following chain represents the state object every slot. With following assumptions:
+Assume we have following chain represents the state object every slot, with following diff layer configurations `1,2,3,5`. With assumption that we have 8 slots each epoch, The following configuration for layers implies:
 
-1. Assume that epoch consists of 5 slots each.
-2. We decide to take snapshot every 3 epoch, so the slots will for the snapshots will be S0, S15, S30, S45 etc.
-3. We decided to take state binary diff start of every epoch which is not the snapshot epoch.
+1. We store the snapshot every 5th epoch.
+2. We take diff every epoch, every 2nd epoch and every 3rd epoch.
 
-So if the chain is grown till S12, we have to store only 3 objects, 1 full snapshot and 2 diffs. `S0` will be full serialized value of the beacon sate. `DIFF1` will be binary difference of `S5 - S0`. And `DIFF2` will be binary difference of `S10 - S5`.
-
-Now if user request a state object for the S5, we will fetch nearest snapshot state and apply the diff at S5, so `S5 = S0 + DIFF1`. Similarly if user request the state object for S10 we have to fetch nearest snapshot sate and then apply all diffs in between, so `S10 = ((S0 + DIFF1) + DIFF2)`. What if user request any state in between those diffs, here we replay the blocks. e.g. If user request for `S8` we have to apply one diff and 3 blocks.
-
-With this approach the storage requirement will be reduced and we have more responsive historical state generation.
-
-```
- SNAPSHOT                                  DIFF1                                   DIFF2
-     |                                       |                                       |
-     |                                       |                                       |
-     |                                       |                                       |
-  +-----+ +-----+ +-----+ +-----+ +-----+ +-----+ +-----+ +-----+ +-----+ +-----+ +-----+ +-----+ +-----+
-  |     | |     | |     | |     | |     | |     | |     | |     | |     | |     | |     | |     | |     |
-  |     | |     | |     | |     | |     | |     | |     | |     | |     | |     | |     | |     | |     |
-  +-----+ +-----+ +-----+ +-----+ +-----+ +-----+ +-----+ +-----+ +-----+ +-----+ +-----+ +-----+ +-----+
-    S0      S1      S2      S3      S4      S5      S6      S7      S8      S9      S10     S11     S12
-
-```
+Please see the following table for more understanding of these layers.
+https://docs.google.com/spreadsheets/d/1mRQgv-FEQo9v0oaiX7kxqF2vfoFSRvWcRgMmkGW4lY8/edit?usp=sharing
 
 **Constants**
 
@@ -43,5 +26,4 @@ Following constants values are used for the implementation.
 
 | Name                       | Value | Description                                     |
 | -------------------------- | ----- | ----------------------------------------------- |
-| SNAPSHOT_STATE_EVERY_EPOCH | 1000  | Take full snapshot every certain epochs         |
-| DIFF_STATE_EVERY_EPOCH     | 10    | Take the binary difference every certain epochs |
+| DEFAULT_DIFF_LAYERS | 10, 250, 500, 1000  | Default value for layers         |

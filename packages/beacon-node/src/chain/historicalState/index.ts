@@ -8,6 +8,7 @@ import {
   HistoricalStateWorkerApi,
   HistoricalStateWorkerData,
 } from "./types.js";
+import {DiffLayers} from "./diffLayers.js";
 
 // Worker constructor consider the path relative to the current working directory
 const WORKER_DIR = process.env.NODE_ENV === "test" ? "../../../lib/chain/historicalState" : "./";
@@ -35,6 +36,7 @@ export class HistoricalStateRegen implements HistoricalStateWorkerApi {
       dbLocation: modules.opts.dbLocation,
       metricsEnabled: Boolean(modules.metrics),
       loggerOpts: modules.logger.toOpts(),
+      diffLayers: modules.diffLayers ? modules.diffLayers.getLayersString() : new DiffLayers().getLayersString(),
     };
 
     const worker = new Worker(path.join(WORKER_DIR, "worker.js"), {

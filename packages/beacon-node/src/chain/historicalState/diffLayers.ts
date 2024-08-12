@@ -22,6 +22,10 @@ export class DiffLayers {
       .map((s) => s * SLOTS_PER_EPOCH);
   }
 
+  getLayersString(): string {
+    return `${this.diffEverySlot.map((s) => s / SLOTS_PER_EPOCH).join(",")},${this.snapshotEverySlot}`;
+  }
+
   get totalLayers(): number {
     return this.diffEverySlot.length + 1;
   }
@@ -63,7 +67,7 @@ export class DiffLayers {
     let lastSlot: number | undefined = undefined;
 
     for (let layer = 0; layer < this.totalLayers; layer++) {
-      const newSlot = this.getLayerForSlot(slot, layer);
+      const newSlot = this.getLastSlotForLayer(slot, layer);
       if (lastSlot === undefined || newSlot > lastSlot) {
         lastSlot = newSlot;
         path.push(newSlot);
@@ -72,7 +76,7 @@ export class DiffLayers {
     return [...new Set(path)];
   }
 
-  getLayerForSlot(slot: Slot, layer: number): Slot {
+  getLastSlotForLayer(slot: Slot, layer: number): Slot {
     if (layer < 0 || layer > this.totalLayers) {
       throw new Error(`Invalid layer number. Must be between 0-${this.totalLayers - 1}`);
     }

@@ -11,6 +11,7 @@ import {BeaconDb} from "../../db/index.js";
 import {HistoricalStateRegenMetrics, HistoricalStateWorkerApi, HistoricalStateWorkerData} from "./types.js";
 import {getHistoricalState} from "./historicalState.js";
 import {getMetrics} from "./metrics.js";
+import {DiffLayers} from "./diffLayers.js";
 
 // most of this setup copied from networkCoreWorker.ts
 
@@ -23,7 +24,7 @@ const logger = getNodeLogger(workerData.loggerOpts);
 logger.info("Historical state worker started");
 
 const config = createBeaconConfig(chainConfigFromJson(workerData.chainConfigJson), workerData.genesisValidatorsRoot);
-
+const diffLayers = new DiffLayers(workerData.diffLayers);
 const db = new BeaconDb(config, await LevelDbController.create({name: workerData.dbLocation}, {logger}));
 
 const abortController = new AbortController();
@@ -86,7 +87,7 @@ const api: HistoricalStateWorkerApi = {
     historicalStateRegenMetrics?.regenRequestCount.inc();
 
     const stateBytes = await queue.push<Uint8Array | null>(() =>
-      getHistoricalState({slot}, {config, db, pubkey2index, logger, metrics: historicalStateRegenMetrics})
+      getHistoricalState({slot}, {config, db, pubkey2index, logger, diffLayers, metrics: historicalStateRegenMetrics})
     );
 
     if (stateBytes) {

@@ -4,6 +4,7 @@ import {LoggerNode, LoggerNodeOpts} from "@lodestar/logger/node";
 import {BeaconStateTransitionMetrics} from "@lodestar/state-transition";
 import {Gauge, Histogram} from "@lodestar/utils";
 import {Metrics} from "../../metrics/index.js";
+import {DiffLayers} from "./diffLayers.js";
 
 export type HistoricalStateRegenInitModules = {
   opts: {
@@ -14,6 +15,7 @@ export type HistoricalStateRegenInitModules = {
   logger: LoggerNode;
   metrics: Metrics | null;
   signal?: AbortSignal;
+  diffLayers?: DiffLayers;
 };
 export type HistoricalStateRegenModules = HistoricalStateRegenInitModules & {
   api: ModuleThread<HistoricalStateWorkerApi>;
@@ -28,6 +30,7 @@ export type HistoricalStateWorkerData = {
   dbLocation: string;
   metricsEnabled: boolean;
   loggerOpts: LoggerNodeOpts;
+  diffLayers: string;
 };
 
 export type HistoricalStateWorkerApi = {
@@ -63,6 +66,7 @@ export enum StateArchiveStrategy {
 
 export interface IBinaryDiffCodec {
   init(): Promise<void>;
+  initialized: boolean;
   compute(base: Uint8Array, changed: Uint8Array): Uint8Array;
   apply(base: Uint8Array, delta: Uint8Array): Uint8Array;
 }

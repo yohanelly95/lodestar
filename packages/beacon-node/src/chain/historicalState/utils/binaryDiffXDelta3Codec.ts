@@ -2,8 +2,15 @@ import {init, xd3_encode_memory, xd3_decode_memory, xd3_smatch_cfg} from "xdelta
 import {IBinaryDiffCodec} from "../types.js";
 
 export class BinaryDiffXDelta3Codec implements IBinaryDiffCodec {
+  private isInitialized: boolean = false;
+
   async init(): Promise<void> {
     await init();
+    this.isInitialized = true;
+  }
+
+  get initialized(): boolean {
+    return this.isInitialized;
   }
 
   compute(base: Uint8Array, changed: Uint8Array): Uint8Array {

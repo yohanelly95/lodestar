@@ -1,19 +1,16 @@
+import {BeaconConfig} from "@lodestar/config";
 import {
   BeaconStateAllForks,
   CachedBeaconStateAllForks,
   DataAvailableStatus,
   ExecutionPayloadStatus,
   PubkeyIndexMap,
-  computeEpochAtSlot,
   createCachedBeaconState,
   stateTransition,
 } from "@lodestar/state-transition";
-import {BeaconConfig} from "@lodestar/config";
-import {Logger} from "@lodestar/logger";
-import {RootHex, Slot} from "@lodestar/types";
+import {Slot} from "@lodestar/types";
 import {IBeaconDb} from "../../../db/index.js";
-import {HistoricalStateRegenMetrics, RegenErrorType, StateArchiveStrategy} from "../types.js";
-import {validateStateArchiveStrategy} from "../utils/strategies.js";
+import {HistoricalStateRegenMetrics, RegenErrorType} from "../types.js";
 
 /**
  * Populate a PubkeyIndexMap with any new entries based on a BeaconState
@@ -62,13 +59,13 @@ export async function getNearestState(
 /**
  * Get and regenerate a historical state
  */
-export async function getState(
+export async function replayBlocks(
   {
-    slot,
+    toSlot,
     lastFullSlot,
     lastFullState,
   }: {
-    slot: Slot;
+    toSlot: Slot;
     lastFullState: Uint8Array;
     lastFullSlot: Slot;
   },
@@ -79,15 +76,13 @@ export async function getState(
     metrics,
   }: {config: BeaconConfig; db: IBeaconDb; pubkey2index: PubkeyIndexMap; metrics?: HistoricalStateRegenMetrics}
 ): Promise<Uint8Array> {
-  const regenTimer = metrics?.regenTime.startTimer();
-
-  if (lastFullSlot + 1 !== slot) {
-    throw new Error(`Invalid full state slot to regen historical sate. expected=${slot - 1} actual=${lastFullSlot}`);
+  if (lastFullSlot + 1 !== toSlot) {
+    throw new Error(`Invalid full state slot to regen historical sate. expected=${toSlot - 1} actual=${lastFullSlot}`);
   }
 
   const transitionTimer = metrics?.stateTransitionTime.startTimer();
 
-  let state = config.getForkTypes(slot).BeaconState.deserializeToViewDU(lastFullState);
+  let state = config.getForkTypes(toSlot).BeaconState.deserializeToViewDU(lastFullState);
   syncPubkeyCache(state, pubkey2index);
   state = createCachedBeaconState(
     state,
@@ -103,7 +98,7 @@ export async function getState(
 
   let blockCount = 0;
 
-  for await (const block of db.blockArchive.valuesStream({gt: lastFullSlot, lte: slot})) {
+  for await (const block of db.blockArchive.valuesStream({gt: lastFullSlot, lte: toSlot})) {
     try {
       state = stateTransition(
         state as CachedBeaconStateAllForks,
@@ -134,17 +129,4 @@ export async function getState(
   serializeTimer?.();
 
   return stateBytes;
-}
-
-export async function putState(
-  {slot, blockRoot}: {slot: Slot; blockRoot: RootHex},
-  {logger}: {logger: Logger}
-): Promise<void> {
-  validateStateArchiveStrategy(slot, StateArchiveStrategy.BlockReplay);
-
-  logger.verbose("State archive skipped for", {
-    epoch: computeEpochAtSlot(slot),
-    slot,
-    blockRoot,
-  });
 }

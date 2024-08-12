@@ -1,14 +1,15 @@
-import {RootHex, Slot} from "@lodestar/types";
+import {Slot} from "@lodestar/types";
 import {Logger} from "@lodestar/logger";
 import {BeaconConfig} from "@lodestar/config";
-import {PubkeyIndexMap} from "@lodestar/state-transition";
+import {computeEpochAtSlot, PubkeyIndexMap} from "@lodestar/state-transition";
 import {IBeaconDb} from "../../db/interface.js";
-import {IStateRegenerator, RegenCaller} from "../regen/interface.js";
-import {HistoricalStateRegenMetrics, RegenErrorType, StateArchiveStrategy} from "./types.js";
-import {getLastCompatibleSlot, getStateArchiveStrategy} from "./utils/strategies.js";
-import * as snapshot from "./strategies/snapshot.js";
-import * as diff from "./strategies/diff.js";
-import * as blockReplay from "./strategies/blockReplay.js";
+import {HistoricalStateRegenMetrics, IBinaryDiffCodec, RegenErrorType, StateArchiveStrategy} from "./types.js";
+import {replayBlocks} from "./utils/blockReplay.js";
+import {DiffLayers} from "./diffLayers.js";
+import {BinaryDiffVCDiffCodec} from "./utils/binaryDiffVCDiffCodec.js";
+import {replayStateDiffsTill} from "./utils/diff.js";
+
+const codec: IBinaryDiffCodec = new BinaryDiffVCDiffCodec();
 
 export async function getHistoricalState(
   {slot}: {slot: Slot},
@@ -17,42 +18,46 @@ export async function getHistoricalState(
     logger,
     config,
     metrics,
+    diffLayers,
     pubkey2index,
   }: {
     config: BeaconConfig;
     db: IBeaconDb;
     pubkey2index: PubkeyIndexMap;
     logger: Logger;
+    diffLayers: DiffLayers;
     metrics?: HistoricalStateRegenMetrics;
   }
 ): Promise<Uint8Array | null> {
   const regenTimer = metrics?.regenTime.startTimer();
-  const strategy = getStateArchiveStrategy(slot);
+  const strategy = diffLayers.getArchiveStrategy(slot);
   logger.debug("Fetching state archive", {strategy, slot});
 
   switch (strategy) {
     case StateArchiveStrategy.Snapshot: {
-      const state = snapshot.getState({slot}, {db});
+      const loadStateTimer = metrics?.loadStateTime.startTimer();
+      const state = await db.stateArchive.getBinary(slot);
+      loadStateTimer?.();
       regenTimer?.({strategy: StateArchiveStrategy.Snapshot});
-
       return state;
     }
     case StateArchiveStrategy.Diff: {
-      const {snapshotSlot, snapshotState} = await getLastSnapshotState(slot, {db, metrics, logger});
+      const {snapshotState} = await getLastSnapshotState(slot, {db, metrics, logger, diffLayers});
       if (!snapshotState) return null;
+      const diffSlots = diffLayers.getArchiveLayers(slot);
 
-      const state = diff.getState({slot, snapshotSlot, snapshotState}, {db});
+      const state = await replayStateDiffsTill({diffSlots, snapshotState}, {db, codec});
 
       regenTimer?.({strategy: StateArchiveStrategy.Diff});
 
       return state;
     }
     case StateArchiveStrategy.BlockReplay: {
-      const {diffState, diffSlot} = await getLastDiffState(slot, {db, metrics, logger});
+      const {diffState, diffSlots} = await getLastDiffState(slot, {diffLayers, db, metrics, logger});
       if (!diffState) return null;
 
-      const state = blockReplay.getState(
-        {slot, lastFullSlot: diffSlot, lastFullState: diffState},
+      const state = replayBlocks(
+        {toSlot: slot, lastFullSlot: diffSlots[diffSlots.length - 1], lastFullState: diffState},
         {config, db, metrics, pubkey2index}
       );
       regenTimer?.({strategy: StateArchiveStrategy.BlockReplay});
@@ -63,38 +68,58 @@ export async function getHistoricalState(
 }
 
 export async function putHistoricalSate(
-  {slot, blockRoot}: {slot: Slot; blockRoot: RootHex},
+  {slot, state}: {slot: Slot; state: Uint8Array},
   {
-    regen,
     db,
     logger,
     metrics,
-  }: {regen: IStateRegenerator; db: IBeaconDb; logger: Logger; metrics?: HistoricalStateRegenMetrics}
+    diffLayers,
+  }: {
+    db: IBeaconDb;
+    logger: Logger;
+    metrics?: HistoricalStateRegenMetrics;
+    diffLayers: DiffLayers;
+  }
 ): Promise<void> {
-  const strategy = getStateArchiveStrategy(slot);
+  const strategy = diffLayers.getArchiveStrategy(slot);
+  const epoch = computeEpochAtSlot(slot);
   logger.debug("Storing state archive", {strategy, slot});
 
   switch (strategy) {
     case StateArchiveStrategy.Snapshot: {
-      await snapshot.putState({slot, blockRoot}, {regen, db, logger});
+      metrics?.stateSnapshotSize.set(state.byteLength);
+      await db.stateArchive.putBinary(slot, state);
+      logger.verbose("State stored as snapshot", {
+        epoch,
+        slot,
+      });
       break;
     }
     case StateArchiveStrategy.Diff: {
-      const {snapshotSlot, snapshotState} = await getLastSnapshotState(slot, {db, metrics, logger});
+      const {snapshotState} = await getLastSnapshotState(slot, {db, metrics, logger, diffLayers});
       if (!snapshotState) return;
+      const diffSlots = diffLayers.getArchiveLayers(slot);
 
-      const state = await regen.getBlockSlotState(
-        blockRoot,
+      const previousState = await replayStateDiffsTill({diffSlots, snapshotState}, {db, codec});
+
+      const diff = codec.compute(previousState, state);
+
+      metrics?.stateDiffSize.set(diff.byteLength);
+
+      await db.stateArchive.putBinary(slot, diff);
+
+      logger.verbose("State stored as diff", {
+        epoch,
         slot,
-        {dontTransferCache: false},
-        RegenCaller.historicalState
-      );
-
-      await diff.putState({slot, state: state.serialize(), snapshotSlot, snapshotState}, {db, logger, metrics});
+      });
       break;
     }
     case StateArchiveStrategy.BlockReplay: {
-      await blockReplay.putState({slot, blockRoot}, {logger});
+      logger.verbose("Skipping storage of historical state", {
+        epoch,
+        slot,
+      });
+
       break;
     }
   }
@@ -102,12 +127,17 @@ export async function putHistoricalSate(
 
 async function getLastSnapshotState(
   slot: Slot,
-  {db, metrics, logger}: {db: IBeaconDb; metrics?: HistoricalStateRegenMetrics; logger: Logger}
+  {
+    db,
+    metrics,
+    logger,
+    diffLayers,
+  }: {db: IBeaconDb; metrics?: HistoricalStateRegenMetrics; logger?: Logger; diffLayers: DiffLayers}
 ): Promise<{snapshotState: Uint8Array | null; snapshotSlot: Slot}> {
-  const snapshotSlot = getLastCompatibleSlot(slot, StateArchiveStrategy.Snapshot);
-  const snapshotState = await snapshot.getState({slot: snapshotSlot}, {db});
+  const snapshotSlot = diffLayers.getLastSlotForLayer(slot, 0);
+  const snapshotState = await db.stateArchive.getBinary(snapshotSlot);
   if (!snapshotState) {
-    logger.error("Missing the snapshot state", {snapshotSlot});
+    logger?.error("Missing the snapshot state", {snapshotSlot});
     metrics?.regenErrorCount.inc({reason: RegenErrorType.loadState});
     return {snapshotSlot, snapshotState: null};
   }
@@ -116,63 +146,66 @@ async function getLastSnapshotState(
 
 async function getLastDiffState(
   slot: Slot,
-  {db, metrics, logger}: {db: IBeaconDb; metrics?: HistoricalStateRegenMetrics; logger: Logger}
-): Promise<{diffState: Uint8Array | null; diffSlot: Slot}> {
-  const diffSlot = getLastCompatibleSlot(slot, StateArchiveStrategy.Diff);
-  const {snapshotSlot, snapshotState} = await getLastSnapshotState(slot, {db, metrics, logger});
-  if (!snapshotState) return {diffState: null, diffSlot};
+  {
+    db,
+    metrics,
+    logger,
+    diffLayers,
+  }: {db: IBeaconDb; metrics?: HistoricalStateRegenMetrics; logger: Logger; diffLayers: DiffLayers}
+): Promise<{diffState: Uint8Array | null; diffSlots: Slot[]}> {
+  const diffSlots = diffLayers.getArchiveLayers(slot);
+  const snapshotState = await db.stateArchive.getBinary(diffSlots[0]);
+  if (!snapshotState) return {diffState: null, diffSlots};
 
-  const diffState = await diff.getState({slot: diffSlot, snapshotSlot, snapshotState}, {db});
-  if (!diffState) {
-    logger.error("Missing the diff state", {diffSlot});
+  try {
+    const diffState = await replayStateDiffsTill({diffSlots, snapshotState}, {db, codec});
+    return {diffSlots, diffState};
+  } catch {
+    logger.error("Missing the diff state", {diffSlots: diffSlots.join(",")});
     metrics?.regenErrorCount.inc({reason: RegenErrorType.loadState});
-    return {diffSlot, diffState: null};
+    return {diffSlots, diffState: null};
   }
-  return {diffSlot, diffState};
 }
 
 export async function getLastStoredState({
   db,
+  diffLayers,
+  metrics,
+  logger,
 }: {
   db: IBeaconDb;
+  diffLayers: DiffLayers;
+  metrics?: HistoricalStateRegenMetrics;
+  logger?: Logger;
 }): Promise<{state: Uint8Array | null; slot: Slot | null}> {
   const lastStoredSlot = await db.stateArchive.lastKey();
   if (lastStoredSlot === null) {
     return {state: null, slot: null};
   }
 
-  const strategy = getStateArchiveStrategy(lastStoredSlot);
+  const strategy = diffLayers.getArchiveStrategy(lastStoredSlot);
   switch (strategy) {
     case StateArchiveStrategy.Snapshot:
-      return {state: await snapshot.getState({slot: lastStoredSlot}, {db}), slot: lastStoredSlot};
+      return {state: await db.stateArchive.getBinary(lastStoredSlot), slot: lastStoredSlot};
     case StateArchiveStrategy.Diff: {
-      const snapshotSlot = getLastCompatibleSlot(lastStoredSlot, StateArchiveStrategy.Snapshot);
-      const snapshotState = await snapshot.getState({slot: snapshotSlot}, {db});
+      const {snapshotSlot, snapshotState} = await getLastSnapshotState(lastStoredSlot, {
+        db,
+        metrics,
+        logger,
+        diffLayers,
+      });
       if (!snapshotState) {
         throw new Error(`Missing the snapshot state slot=${snapshotSlot}`);
       }
       return {
-        state: await diff.getState({slot: lastStoredSlot, snapshotSlot, snapshotState}, {db}),
+        state: await replayStateDiffsTill(
+          {diffSlots: diffLayers.getArchiveLayers(lastStoredSlot), snapshotState},
+          {db, codec}
+        ),
         slot: lastStoredSlot,
       };
     }
     case StateArchiveStrategy.BlockReplay:
       throw new Error(`Unexpected stored slot for a non epoch slot=${lastStoredSlot}`);
-  }
-}
-
-/**
- * Used to store state initialized from the checkpoint as anchor state
- */
-export async function storeArbitraryState(
-  {slot, state}: {slot: Slot; state: Uint8Array},
-  {db}: {db: IBeaconDb}
-): Promise<void> {
-  const lastSlot = await db.stateArchive.lastKey();
-
-  if (lastSlot === null) {
-    // diff.putState({});
-  } else {
-    await db.stateArchive.putBinary(slot, state);
   }
 }

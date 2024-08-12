@@ -4,6 +4,7 @@ import {IBeaconDb} from "../../db/index.js";
 import {JobItemQueue} from "../../util/queue/index.js";
 import {IBeaconChain} from "../interface.js";
 import {ChainEvent} from "../emitter.js";
+import {DiffLayers} from "../historicalState/diffLayers.js";
 import {StatesArchiver, StatesArchiverOpts} from "./archiveStates.js";
 import {archiveBlocks} from "./archiveBlocks.js";
 
@@ -43,12 +44,13 @@ export class Archiver {
   constructor(
     private readonly db: IBeaconDb,
     private readonly chain: IBeaconChain,
+    private readonly diffLayers: DiffLayers,
     private readonly logger: Logger,
     signal: AbortSignal,
     opts: ArchiverOpts
   ) {
     this.archiveBlobEpochs = opts.archiveBlobEpochs;
-    this.statesArchiver = new StatesArchiver(chain.regen, db, logger, opts, chain.bufferPool);
+    this.statesArchiver = new StatesArchiver(chain.regen, db, logger, diffLayers, opts);
     this.prevFinalized = chain.forkChoice.getFinalizedCheckpoint();
     this.jobQueue = new JobItemQueue<[CheckpointWithHex], void>(this.processFinalizedCheckpoint, {
       maxLength: PROCESS_FINALIZED_CHECKPOINT_QUEUE_LEN,

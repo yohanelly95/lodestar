@@ -101,6 +101,7 @@ import {DbCPStateDatastore} from "./stateCache/datastore/db.js";
 import {FileCPStateDatastore} from "./stateCache/datastore/file.js";
 import {SyncCommitteeRewards, computeSyncCommitteeRewards} from "./rewards/syncCommitteeRewards.js";
 import {AttestationsRewards, computeAttestationsRewards} from "./rewards/attestationsRewards.js";
+import {DiffLayers} from "./historicalState/diffLayers.js";
 
 /**
  * Arbitrary constants, blobs and payloads should be consumed immediately in the same slot
@@ -334,7 +335,8 @@ export class BeaconChain implements IBeaconChain {
     this.bls = bls;
     this.emitter = emitter;
 
-    this.archiver = new Archiver(db, this, logger, signal, opts);
+    // TODO: Decouple DiffLayers from archiver
+    this.archiver = new Archiver(db, this, new DiffLayers(), logger, signal, opts);
     // always run PrepareNextSlotScheduler except for fork_choice spec tests
     if (!opts?.disablePrepareNextSlot) {
       new PrepareNextSlotScheduler(this, this.config, metrics, this.logger, signal);

@@ -4,9 +4,9 @@ import {Slot, Epoch} from "@lodestar/types";
 import {computeEpochAtSlot, computeStartSlotAtEpoch} from "@lodestar/state-transition";
 import {CheckpointWithHex} from "@lodestar/fork-choice";
 import {IBeaconDb} from "../../db/index.js";
-import {IStateRegenerator} from "../regen/interface.js";
-import {BufferPool} from "../../util/bufferPool.js";
+import {IStateRegenerator, RegenCaller} from "../regen/interface.js";
 import {putHistoricalSate} from "../historicalState/historicalState.js";
+import {DiffLayers} from "../historicalState/diffLayers.js";
 
 /**
  * Minimum number of epochs between single temp archived states
@@ -31,8 +31,8 @@ export class StatesArchiver {
     private readonly regen: IStateRegenerator,
     private readonly db: IBeaconDb,
     private readonly logger: Logger,
-    private readonly opts: StatesArchiverOpts,
-    private readonly bufferPool?: BufferPool | null
+    private readonly diffLayers: DiffLayers,
+    private readonly opts: StatesArchiverOpts
   ) {}
 
   /**
@@ -86,9 +86,12 @@ export class StatesArchiver {
    * Only the new finalized state is stored to disk
    */
   async archiveState(finalized: CheckpointWithHex): Promise<void> {
+    const state = (
+      await this.regen.getCheckpointState(finalized, {dontTransferCache: true}, RegenCaller.historicalState)
+    ).serialize();
     await putHistoricalSate(
-      {slot: computeStartSlotAtEpoch(finalized.epoch), blockRoot: finalized.rootHex},
-      {db: this.db, regen: this.regen, logger: this.logger}
+      {slot: computeStartSlotAtEpoch(finalized.epoch), state},
+      {db: this.db, logger: this.logger, diffLayers: this.diffLayers}
     );
   }
 }

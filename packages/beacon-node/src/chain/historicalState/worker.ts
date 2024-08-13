@@ -9,7 +9,7 @@ import {JobFnQueue} from "../../util/queue/fnQueue.js";
 import {QueueMetrics} from "../../util/queue/options.js";
 import {BeaconDb} from "../../db/index.js";
 import {HistoricalStateRegenMetrics, HistoricalStateWorkerApi, HistoricalStateWorkerData} from "./types.js";
-import {getHistoricalState} from "./historicalState.js";
+import {getHistoricalState, putHistoricalSate} from "./historicalState.js";
 import {getMetrics} from "./metrics.js";
 import {DiffLayers} from "./diffLayers.js";
 
@@ -98,6 +98,9 @@ const api: HistoricalStateWorkerApi = {
     } else {
       return null;
     }
+  },
+  async storeHistoricalState(slot, state) {
+    return putHistoricalSate({slot, state}, {db, logger, diffLayers, metrics: historicalStateRegenMetrics});
   },
 };
 

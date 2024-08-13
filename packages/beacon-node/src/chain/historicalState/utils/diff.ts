@@ -4,6 +4,7 @@ import {computeEpochAtSlot} from "@lodestar/state-transition";
 import {HistoricalStateRegenMetrics, IBinaryDiffCodec, RegenErrorType} from "../types.js";
 import {IBeaconDb} from "../../../db/interface.js";
 import {DiffLayers} from "../diffLayers.js";
+import {getSnapshotStateWithFallback} from "./snapshot.js";
 
 export async function replayStateDiffs(
   {diffs, snapshotState}: {diffs: Uint8Array[]; snapshotState: Uint8Array},
@@ -54,7 +55,7 @@ export async function getDiffState(
     return {diffSlots, diffState: null};
   }
 
-  const snapshotState = await db.stateSnapshotArchive.getBinary(snapshotSlot);
+  const snapshotState = await getSnapshotStateWithFallback(snapshotSlot, db);
   if (!snapshotState) {
     logger?.error("Missing the snapshot state", {snapshotSlot});
     metrics?.regenErrorCount.inc({reason: RegenErrorType.loadState});

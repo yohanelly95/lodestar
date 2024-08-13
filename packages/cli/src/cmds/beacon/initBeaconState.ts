@@ -105,7 +105,7 @@ export async function initBeaconState(
   //   ii) used during verification of a weak subjectivity state,
   const {state: lastDbStateBinary, slot: lastDbSlot} = await getLastStoredState({db, diffLayers: new DiffLayers()});
   const lastDbState =
-    lastDbStateBinary && lastDbSlot
+    lastDbStateBinary && lastDbSlot !== null && lastDbSlot !== undefined
       ? chainForkConfig.getForkTypes(lastDbSlot).BeaconState.deserializeToViewDU(lastDbStateBinary)
       : null;
 

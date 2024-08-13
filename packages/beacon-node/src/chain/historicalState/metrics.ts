@@ -107,7 +107,6 @@ export function getMetrics(metricsRegister: RegistryMetricCreator): HistoricalSt
     stateTransitionBlocks: metricsRegister.histogram({
       name: "lodestar_historical_state_state_transition_blocks",
       help: "Count of blocks processed during state transition to regen historical state",
-      // given archiveStateEpochFrequency=1024, it could process up to 32768 blocks
       buckets: [10, 100, 1000, 10000, 30000],
     }),
     stateSerializationTime: metricsRegister.histogram({

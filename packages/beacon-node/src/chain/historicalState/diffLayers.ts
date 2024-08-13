@@ -2,7 +2,7 @@ import {Slot} from "@lodestar/types";
 import {SLOTS_PER_EPOCH} from "@lodestar/params";
 import {StateArchiveStrategy} from "./types.js";
 
-export const DEFAULT_DIFF_LAYERS = "10, 250, 500, 1000";
+export const DEFAULT_DIFF_LAYERS = "4, 64, 256, 1024";
 
 export class DiffLayers {
   private snapshotEverySlot: number;
@@ -18,12 +18,16 @@ export class DiffLayers {
     this.snapshotEverySlot = epochs[epochs.length - 1] * SLOTS_PER_EPOCH;
     this.diffEverySlot = epochs
       .slice(0, -1)
+      // Reverse here, so lower layer get higher priority when matching
       .reverse()
       .map((s) => s * SLOTS_PER_EPOCH);
   }
 
   getLayersString(): string {
-    return `${this.diffEverySlot.map((s) => s / SLOTS_PER_EPOCH).join(",")},${this.snapshotEverySlot}`;
+    return `${this.diffEverySlot
+      .reverse()
+      .map((s) => s / SLOTS_PER_EPOCH)
+      .join(",")},${this.snapshotEverySlot / SLOTS_PER_EPOCH}`;
   }
 
   get totalLayers(): number {

@@ -14,9 +14,9 @@ import {
   initStateFromEth1,
   getStateTypeFromBytes,
   getLastStoredState,
+  DiffLayers,
 } from "@lodestar/beacon-node";
 import {Checkpoint} from "@lodestar/types/phase0";
-
 import {downloadOrLoadFile, wrapFnError} from "../../util/index.js";
 import {defaultNetwork, GlobalArgs} from "../../options/globalOptions.js";
 import {
@@ -103,7 +103,7 @@ export async function initBeaconState(
   // fetch the latest state stored in the db which will be used in all cases, if it exists, either
   //   i)  used directly as the anchor state
   //   ii) used during verification of a weak subjectivity state,
-  const {state: lastDbStateBinary, slot: lastDbSlot} = await getLastStoredState({db});
+  const {state: lastDbStateBinary, slot: lastDbSlot} = await getLastStoredState({db, diffLayers: new DiffLayers()});
   const lastDbState =
     lastDbStateBinary && lastDbSlot
       ? chainForkConfig.getForkTypes(lastDbSlot).BeaconState.deserializeToViewDU(lastDbStateBinary)

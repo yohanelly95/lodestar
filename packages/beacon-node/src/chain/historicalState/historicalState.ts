@@ -37,7 +37,7 @@ export async function getHistoricalState(
   switch (strategy) {
     case StateArchiveStrategy.Snapshot: {
       const loadStateTimer = metrics?.loadStateTime.startTimer();
-      const state = await db.stateArchive.getBinary(slot);
+      const state = await db.stateSnapshotArchive.getBinary(slot);
       loadStateTimer?.();
       regenTimer?.({strategy: StateArchiveStrategy.Snapshot});
       return state;
@@ -87,7 +87,7 @@ export async function putHistoricalSate(
   switch (strategy) {
     case StateArchiveStrategy.Snapshot: {
       metrics?.stateSnapshotSize.set(state.byteLength);
-      await db.stateArchive.putBinary(slot, state);
+      await db.stateSnapshotArchive.putBinary(slot, state);
       logger.verbose("State stored as snapshot", {
         epoch,
         slot,
@@ -103,7 +103,7 @@ export async function putHistoricalSate(
 
       metrics?.stateDiffSize.set(diff.byteLength);
 
-      await db.stateArchive.putBinary(slot, diff);
+      await db.stateSnapshotArchive.putBinary(slot, diff);
 
       logger.verbose("State stored as diff", {
         epoch,
@@ -133,7 +133,7 @@ export async function getLastStoredState({
   metrics?: HistoricalStateRegenMetrics;
   logger?: Logger;
 }): Promise<{state: Uint8Array | null; slot: Slot | null}> {
-  const lastStoredSlot = await db.stateArchive.lastKey();
+  const lastStoredSlot = await db.stateSnapshotArchive.lastKey();
   if (lastStoredSlot === null) {
     return {state: null, slot: null};
   }
@@ -142,7 +142,7 @@ export async function getLastStoredState({
 
   switch (strategy) {
     case StateArchiveStrategy.Snapshot:
-      return {state: await db.stateArchive.getBinary(lastStoredSlot), slot: lastStoredSlot};
+      return {state: await db.stateSnapshotArchive.getBinary(lastStoredSlot), slot: lastStoredSlot};
     case StateArchiveStrategy.Diff: {
       const {diffState} = await getDiffState(
         {slot: lastStoredSlot, skipSlotDiff: false},

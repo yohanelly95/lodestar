@@ -523,7 +523,7 @@ export class BeaconChain implements IBeaconChain {
       };
     }
 
-    const data = await this.db.stateArchive.getByRoot(fromHexString(stateRoot));
+    const data = await this.db.stateSnapshotArchive.getByRoot(fromHexString(stateRoot));
     return data && {state: data, executionOptimistic: false, finalized: true};
   }
 

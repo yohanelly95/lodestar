@@ -54,7 +54,7 @@ export async function getDiffState(
     return {diffSlots, diffState: null};
   }
 
-  const snapshotState = await db.stateArchive.getBinary(snapshotSlot);
+  const snapshotState = await db.stateSnapshotArchive.getBinary(snapshotSlot);
   if (!snapshotState) {
     logger?.error("Missing the snapshot state", {snapshotSlot});
     metrics?.regenErrorCount.inc({reason: RegenErrorType.loadState});
@@ -62,7 +62,7 @@ export async function getDiffState(
   }
 
   // Get all diffs except the first one which was a snapshot layer
-  const diffs = await Promise.all(processableDiffs.map((s) => db.stateArchive.getBinary(s)));
+  const diffs = await Promise.all(processableDiffs.map((s) => db.stateSnapshotArchive.getBinary(s)));
   const nonEmptyDiffs = diffs.filter((d) => d !== undefined && d !== null) as Uint8Array[];
 
   if (nonEmptyDiffs.length < processableDiffs.length) {

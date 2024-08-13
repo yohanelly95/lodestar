@@ -35,7 +35,7 @@ export async function getNearestState(
   db: IBeaconDb,
   pubkey2index: PubkeyIndexMap
 ): Promise<CachedBeaconStateAllForks> {
-  const states = await db.stateArchive.values({limit: 1, lte: slot, reverse: true});
+  const states = await db.stateSnapshotArchive.values({limit: 1, lte: slot, reverse: true});
   if (!states.length) {
     throw new Error("No near state found in the database");
   }

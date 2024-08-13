@@ -7,7 +7,7 @@ import {
   DepositDataRootRepository,
   Eth1DataRepository,
   ProposerSlashingRepository,
-  StateArchiveRepository,
+  StateSnapshotArchiveRepository,
   VoluntaryExitRepository,
   BestLightClientUpdateRepository,
   CheckpointHeaderRepository,
@@ -36,7 +36,7 @@ export interface IBeaconDb {
   blobSidecarsArchive: BlobSidecarsArchiveRepository;
 
   // finalized states
-  stateArchive: StateArchiveRepository;
+  stateSnapshotArchive: StateSnapshotArchiveRepository;
   // checkpoint states
   checkpointState: CheckpointStateRepository;
 

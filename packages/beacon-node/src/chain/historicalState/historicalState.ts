@@ -103,7 +103,7 @@ export async function putHistoricalSate(
 
       metrics?.stateDiffSize.set(diff.byteLength);
 
-      await db.stateSnapshotArchive.putBinary(slot, diff);
+      await db.stateDiffArchive.putBinary(slot, diff);
 
       logger.verbose("State stored as diff", {
         epoch,
@@ -133,7 +133,7 @@ export async function getLastStoredState({
   metrics?: HistoricalStateRegenMetrics;
   logger?: Logger;
 }): Promise<{state: Uint8Array | null; slot: Slot | null}> {
-  const lastStoredSlot = await db.stateSnapshotArchive.lastKey();
+  const lastStoredSlot = await db.stateDiffArchive.lastKey();
   if (lastStoredSlot === null) {
     return {state: null, slot: null};
   }

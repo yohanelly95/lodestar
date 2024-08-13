@@ -62,7 +62,7 @@ export async function getDiffState(
   }
 
   // Get all diffs except the first one which was a snapshot layer
-  const diffs = await Promise.all(processableDiffs.map((s) => db.stateSnapshotArchive.getBinary(s)));
+  const diffs = await Promise.all(processableDiffs.map((s) => db.stateDiffArchive.getBinary(s)));
   const nonEmptyDiffs = diffs.filter((d) => d !== undefined && d !== null) as Uint8Array[];
 
   if (nonEmptyDiffs.length < processableDiffs.length) {

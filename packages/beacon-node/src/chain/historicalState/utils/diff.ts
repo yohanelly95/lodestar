@@ -7,19 +7,19 @@ import {DiffLayers} from "../diffLayers.js";
 import {getSnapshotStateWithFallback} from "./snapshot.js";
 
 export async function replayStateDiffs(
-  {diffs, snapshotState}: {diffs: Uint8Array[]; snapshotState: Uint8Array},
+  {diffs, snapshotStateBytes}: {diffs: Uint8Array[]; snapshotStateBytes: Uint8Array},
   {codec}: {codec: IBinaryDiffCodec}
 ): Promise<Uint8Array> {
   if (!codec.initialized) {
     await codec.init();
   }
 
-  let activeState: Uint8Array = snapshotState;
+  let activeStateBytes: Uint8Array = snapshotStateBytes;
   for (const intermediateStateDiff of diffs) {
-    activeState = codec.apply(activeState, intermediateStateDiff);
+    activeStateBytes = codec.apply(activeStateBytes, intermediateStateDiff);
   }
 
-  return activeState;
+  return activeStateBytes;
 }
 
 export async function getDiffState(
@@ -37,7 +37,7 @@ export async function getDiffState(
     diffLayers: DiffLayers;
     codec: IBinaryDiffCodec;
   }
-): Promise<{diffState: Uint8Array | null; diffSlots: Slot[]}> {
+): Promise<{diffStateBytes: Uint8Array | null; diffSlots: Slot[]}> {
   const epoch = computeEpochAtSlot(slot);
   const diffSlots = diffLayers.getArchiveLayers(slot);
   const processableDiffs = [...diffSlots];
@@ -52,14 +52,14 @@ export async function getDiffState(
   if (snapshotSlot === undefined) {
     logger?.error("Missing the snapshot state", {snapshotSlot});
     metrics?.regenErrorCount.inc({reason: RegenErrorType.loadState});
-    return {diffSlots, diffState: null};
+    return {diffSlots, diffStateBytes: null};
   }
 
-  const snapshotState = await getSnapshotStateWithFallback(snapshotSlot, db);
-  if (!snapshotState) {
+  const snapshotStateBytes = await getSnapshotStateWithFallback(snapshotSlot, db);
+  if (!snapshotStateBytes) {
     logger?.error("Missing the snapshot state", {snapshotSlot});
     metrics?.regenErrorCount.inc({reason: RegenErrorType.loadState});
-    return {diffState: null, diffSlots};
+    return {diffStateBytes: null, diffSlots};
   }
 
   // Get all diffs except the first one which was a snapshot layer
@@ -72,11 +72,11 @@ export async function getDiffState(
   }
 
   try {
-    const diffState = await replayStateDiffs({diffs: nonEmptyDiffs, snapshotState}, {codec});
-    return {diffSlots, diffState};
+    const diffState = await replayStateDiffs({diffs: nonEmptyDiffs, snapshotStateBytes}, {codec});
+    return {diffSlots, diffStateBytes: diffState};
   } catch (err) {
     logger?.error("Can not compute the diff state", {diffSlots: diffSlots.join(","), slot, epoch}, err as Error);
     metrics?.regenErrorCount.inc({reason: RegenErrorType.loadState});
-    return {diffSlots, diffState: null};
+    return {diffSlots, diffStateBytes: null};
   }
 }

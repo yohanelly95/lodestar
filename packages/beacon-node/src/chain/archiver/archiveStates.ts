@@ -1,7 +1,9 @@
 import {CheckpointWithHex} from "@lodestar/fork-choice";
 import {Logger} from "@lodestar/utils";
+import {computeStartSlotAtEpoch} from "@lodestar/state-transition";
+import {CachedBeaconStateAllForks} from "@lodestar/state-transition";
 import {IBeaconDb} from "../../db/index.js";
-import {IStateRegenerator, RegenCaller} from "../regen/interface.js";
+import {IStateRegenerator} from "../regen/interface.js";
 import {IHistoricalStateRegen} from "../historicalState/types.js";
 
 export interface StatesArchiverOpts {}
@@ -29,11 +31,20 @@ export class StatesArchiver {
    * Only the new finalized state is stored to disk
    */
   async archiveState(finalized: CheckpointWithHex): Promise<void> {
-    const state = await this.regen.getCheckpointState(
-      finalized,
-      {dontTransferCache: true},
-      RegenCaller.historicalState
+    // starting from Mar 2024, the finalized state could be from disk or in memory
+    const state = await this.regen.getCheckpointStateOrBytes(finalized);
+    if (state === null) {
+      this.logger.warn("Checkpoint state not available to archive.", {epoch: finalized.epoch, root: finalized.rootHex});
+      return;
+    }
+
+    if (Array.isArray(state) && state.constructor === Uint8Array) {
+      return this.historicalSates?.storeHistoricalState(computeStartSlotAtEpoch(finalized.epoch), state);
+    }
+
+    return this.historicalSates?.storeHistoricalState(
+      (state as CachedBeaconStateAllForks).slot,
+      (state as CachedBeaconStateAllForks).serialize()
     );
-    await this.historicalSates?.storeHistoricalState(state.slot, state.serialize());
   }
 }

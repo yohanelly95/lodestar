@@ -103,10 +103,10 @@ export async function initBeaconState(
   // fetch the latest state stored in the db which will be used in all cases, if it exists, either
   //   i)  used directly as the anchor state
   //   ii) used during verification of a weak subjectivity state,
-  const {state: lastDbStateBinary, slot: lastDbSlot} = await getLastStoredState({db, diffLayers: new DiffLayers()});
+  const {stateBytes: lastDbStateBytes, slot: lastDbSlot} = await getLastStoredState({db, diffLayers: new DiffLayers()});
   const lastDbState =
-    lastDbStateBinary && lastDbSlot !== null && lastDbSlot !== undefined
-      ? chainForkConfig.getForkTypes(lastDbSlot).BeaconState.deserializeToViewDU(lastDbStateBinary)
+    lastDbStateBytes && lastDbSlot !== null && lastDbSlot !== undefined
+      ? chainForkConfig.getForkTypes(lastDbSlot).BeaconState.deserializeToViewDU(lastDbStateBytes)
       : null;
 
   if (lastDbState) {

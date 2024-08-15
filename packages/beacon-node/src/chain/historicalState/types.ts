@@ -37,12 +37,12 @@ export type HistoricalStateWorkerApi = {
   close(): Promise<void>;
   scrapeMetrics(): Promise<string>;
   getHistoricalState(slot: number): Promise<Uint8Array | null>;
-  storeHistoricalState(slot: number, state: Uint8Array): Promise<void>;
+  storeHistoricalState(slot: number, stateBytes: Uint8Array): Promise<void>;
 };
 
 export interface IHistoricalStateRegen {
   getHistoricalState(slot: number): Promise<Uint8Array | null>;
-  storeHistoricalState(slot: number, state: Uint8Array): Promise<void>;
+  storeHistoricalState(slot: number, stateBytes: Uint8Array): Promise<void>;
 }
 
 export enum RegenErrorType {

@@ -63,10 +63,10 @@ export async function replayBlocks(
   {
     toSlot,
     lastFullSlot,
-    lastFullState,
+    lastFullStateBytes,
   }: {
     toSlot: Slot;
-    lastFullState: Uint8Array;
+    lastFullStateBytes: Uint8Array;
     lastFullSlot: Slot;
   },
   {
@@ -82,7 +82,7 @@ export async function replayBlocks(
 
   const transitionTimer = metrics?.stateTransitionTime.startTimer();
 
-  let state = config.getForkTypes(toSlot).BeaconState.deserializeToViewDU(lastFullState);
+  let state = config.getForkTypes(toSlot).BeaconState.deserializeToViewDU(lastFullStateBytes);
   syncPubkeyCache(state, pubkey2index);
   state = createCachedBeaconState(
     state,

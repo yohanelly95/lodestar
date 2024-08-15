@@ -5,6 +5,7 @@ export {BlockRepository} from "./block.js";
 export {BlockArchiveRepository} from "./blockArchive.js";
 export type {BlockArchiveBatchPutBinaryItem, BlockFilterOptions} from "./blockArchive.js";
 export {StateSnapshotArchiveRepository} from "./stateSnapshotArchive.js";
+export {StateDiffArchiveRepository} from "./stateDiffArchive.js";
 
 export {AttesterSlashingRepository} from "./attesterSlashing.js";
 export {ProposerSlashingRepository} from "./proposerSlashing.js";

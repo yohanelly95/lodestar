@@ -64,8 +64,7 @@ describe("DiffLayers", () => {
       expect(diffLayers.getArchiveLayers(0)).toEqual([0]);
     });
 
-    // Please see following doc for understanding of these fixtures
-    // https://docs.google.com/spreadsheets/d/1mRQgv-FEQo9v0oaiX7kxqF2vfoFSRvWcRgMmkGW4lY8/edit?usp=sharing
+    // Please see following [doc](../../../../docs/pages/contribution/advance-topics/historical-state-regen.md) for understanding of these fixtures
     it.each([
       {slot: 2, path: [0]},
       {slot: 7, path: [0]},

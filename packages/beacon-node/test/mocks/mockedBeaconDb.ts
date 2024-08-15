@@ -9,6 +9,7 @@ import {
   Eth1DataRepository,
   ProposerSlashingRepository,
   StateSnapshotArchiveRepository,
+  StateDiffArchiveRepository,
   VoluntaryExitRepository,
   BLSToExecutionChangeRepository,
   BlobSidecarsRepository,
@@ -44,7 +45,8 @@ vi.mock("../../src/db/index.js", async (importActual) => {
     return {
       block: vi.mocked(new BlockRepository({} as any, {} as any)),
       blockArchive: vi.mocked(new BlockArchiveRepository({} as any, {} as any)),
-      stateArchive: vi.mocked(new StateSnapshotArchiveRepository({} as any, {} as any)),
+      stateSnapshotArchive: vi.mocked(new StateSnapshotArchiveRepository({} as any, {} as any)),
+      stateDiffArchive: vi.mocked(new StateDiffArchiveRepository({} as any, {} as any)),
 
       voluntaryExit: vi.mocked(new VoluntaryExitRepository({} as any, {} as any)),
       blsToExecutionChange: vi.mocked(new BLSToExecutionChangeRepository({} as any, {} as any)),

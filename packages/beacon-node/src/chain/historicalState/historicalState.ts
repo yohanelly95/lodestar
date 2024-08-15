@@ -32,7 +32,7 @@ export async function getHistoricalState(
   const regenTimer = metrics?.regenTime.startTimer();
   const epoch = computeEpochAtSlot(slot);
   const strategy = diffLayers.getArchiveStrategy(slot);
-  logger.debug("Fetching state archive", {strategy, slot, epoch});
+  logger.verbose("Fetching state archive", {strategy, slot, epoch});
 
   switch (strategy) {
     case StateArchiveStrategy.Snapshot: {
@@ -56,7 +56,11 @@ export async function getHistoricalState(
         {slot, skipSlotDiff: false},
         {db, metrics, logger, diffLayers, codec}
       );
-      if (!diffStateBytes) return null;
+
+      if (!diffStateBytes) {
+        regenTimer?.({strategy: StateArchiveStrategy.BlockReplay});
+        return null;
+      }
 
       const state = replayBlocks(
         {toSlot: slot, lastFullSlot: diffSlots[diffSlots.length - 1], lastFullStateBytes: diffStateBytes},
@@ -106,19 +110,19 @@ export async function putHistoricalState(
       if (!diffState) return;
 
       const diff = codec.compute(diffState, stateBytes);
+      await db.stateDiffArchive.putBinary(slot, diff);
 
       metrics?.stateDiffSize.set(diff.byteLength);
-
-      await db.stateDiffArchive.putBinary(slot, diff);
 
       logger.verbose("State stored as diff", {
         epoch,
         slot,
+        diffSize: diff.byteLength,
       });
       break;
     }
     case StateArchiveStrategy.BlockReplay: {
-      logger.verbose("Skipping storage of historical state", {
+      logger.verbose("Skipping storage of historical state for block replay", {
         epoch,
         slot,
       });
@@ -139,24 +143,28 @@ export async function getLastStoredState({
   metrics?: HistoricalStateRegenMetrics;
   logger?: Logger;
 }): Promise<{stateBytes: Uint8Array | null; slot: Slot | null}> {
-  const lastStoredSlot = await db.stateDiffArchive.lastKey();
-  if (lastStoredSlot === null) {
+  const lastStoredDiffSlot = await db.stateDiffArchive.lastKey();
+  const lastStoredSnapshotSlot = await db.stateSnapshotArchive.lastKey();
+
+  if (lastStoredDiffSlot === null && lastStoredSnapshotSlot === null) {
+    logger?.verbose("State archive db is empty");
     return {stateBytes: null, slot: null};
   }
 
+  const lastStoredSlot = (lastStoredDiffSlot ?? lastStoredSnapshotSlot) as number;
   const strategy = diffLayers.getArchiveStrategy(lastStoredSlot);
 
   switch (strategy) {
     case StateArchiveStrategy.Snapshot:
       return {stateBytes: await db.stateSnapshotArchive.getBinary(lastStoredSlot), slot: lastStoredSlot};
     case StateArchiveStrategy.Diff: {
-      const {diffStateBytes: diffState} = await getDiffState(
+      const {diffStateBytes} = await getDiffState(
         {slot: lastStoredSlot, skipSlotDiff: false},
         {db, metrics, logger, diffLayers, codec}
       );
 
       return {
-        stateBytes: diffState,
+        stateBytes: diffStateBytes,
         slot: lastStoredSlot,
       };
     }

@@ -2,6 +2,14 @@ import {Slot} from "@lodestar/types";
 import {SLOTS_PER_EPOCH} from "@lodestar/params";
 import {StateArchiveStrategy} from "./types.js";
 
+/*
+ * Computed over dev machine with performance tests a diff patch take ~325us
+ * So a duration of 1024 epochs can be covered with maximum 3 diffs and that will take ~1ms without IO time
+ * For block replay it depends upon exactly which slot user requested and what contains in those blocks,
+ * but there will always be less than 4 epochs of the block replay.
+ *
+ * NOTE: Changing this default will require nodes to resync.
+ */
 export const DEFAULT_DIFF_LAYERS = "4, 64, 256, 1024";
 
 export class DiffLayers {

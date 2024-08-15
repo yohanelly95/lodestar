@@ -27,36 +27,6 @@ export function syncPubkeyCache(state: BeaconStateAllForks, pubkey2index: Pubkey
 }
 
 /**
- * Get the nearest BeaconState at or before a slot
- */
-export async function getNearestState(
-  slot: number,
-  config: BeaconConfig,
-  db: IBeaconDb,
-  pubkey2index: PubkeyIndexMap
-): Promise<CachedBeaconStateAllForks> {
-  const states = await db.stateSnapshotArchive.values({limit: 1, lte: slot, reverse: true});
-  if (!states.length) {
-    throw new Error("No near state found in the database");
-  }
-
-  const state = states[0];
-  syncPubkeyCache(state, pubkey2index);
-
-  return createCachedBeaconState(
-    state,
-    {
-      config,
-      pubkey2index,
-      index2pubkey: [],
-    },
-    {
-      skipSyncPubkeys: true,
-    }
-  );
-}
-
-/**
  * Get and regenerate a historical state
  */
 export async function replayBlocks(

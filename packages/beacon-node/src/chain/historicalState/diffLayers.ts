@@ -10,7 +10,7 @@ import {StateArchiveStrategy} from "./types.js";
  *
  * NOTE: Changing this default will require nodes to resync.
  */
-export const DEFAULT_DIFF_LAYERS = "4, 64, 256, 1024";
+export const DEFAULT_DIFF_LAYERS = "8, 32, 128, 512";
 
 export class DiffLayers {
   private snapshotEverySlot: number;

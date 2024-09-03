@@ -14,7 +14,7 @@ const sidebars: SidebarsConfig = {
         "run/getting-started/installation",
         {
           type: "category",
-          label: "Beacon node",
+          label: "Beacon Node",
           items: [
             "run/beacon-management/starting-a-node",
             "run/beacon-management/beacon-cli",

@@ -66,8 +66,8 @@ export const defaultSkipOpts: SkipOpts = {
     /^capella\/light_client\/single_merkle_proof\/BeaconBlockBody.*/,
     /^deneb\/light_client\/single_merkle_proof\/BeaconBlockBody.*/,
     /^electra\/light_client\/.*/,
+    /^(?!.*slashings).*$/,
   ],
-  // TODO Electra: Review this test in the next spec test release
   skippedTests: [/^deneb\/light_client\/sync\/.*electra_fork.*/],
   skippedRunners: ["merkle_proof", "networking"],
 };

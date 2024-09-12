@@ -15,7 +15,7 @@ export interface StatesArchiverOpts {}
  */
 export class StatesArchiver {
   constructor(
-    private readonly historicalSates: IHistoricalStateRegen | undefined,
+    private readonly historicalStateRegen: IHistoricalStateRegen | undefined,
     private readonly regen: IStateRegenerator,
     private readonly db: IBeaconDb,
     private readonly logger: Logger,
@@ -39,10 +39,10 @@ export class StatesArchiver {
     }
 
     if (Array.isArray(state) && state.constructor === Uint8Array) {
-      return this.historicalSates?.storeHistoricalState(computeStartSlotAtEpoch(finalized.epoch), state);
+      return this.historicalStateRegen?.storeHistoricalState(computeStartSlotAtEpoch(finalized.epoch), state);
     }
 
-    return this.historicalSates?.storeHistoricalState(
+    return this.historicalStateRegen?.storeHistoricalState(
       (state as CachedBeaconStateAllForks).slot,
       (state as CachedBeaconStateAllForks).serialize()
     );

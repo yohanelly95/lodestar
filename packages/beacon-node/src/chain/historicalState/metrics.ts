@@ -96,9 +96,15 @@ export function getMetrics(metricsRegister: RegistryMetricCreator): HistoricalSt
       buckets: [5 * 60, 10 * 60, 30 * 60, 60 * 60, 180 * 60],
       labelNames: ["strategy"],
     }),
-    loadStateTime: metricsRegister.histogram({
-      name: "lodestar_historical_state_load_nearest_state_time_seconds",
-      help: "Time to load a nearest historical state from the database in seconds",
+    loadSnapshotStateTime: metricsRegister.histogram({
+      name: "lodestar_historical_state_load_snapshot_state_time_seconds",
+      help: "Time to load a historical snapshot state from the database in seconds",
+      // 30s, 1m, 2m, 4m
+      buckets: [30, 60, 120, 240],
+    }),
+    loadDiffStateTime: metricsRegister.histogram({
+      name: "lodestar_historical_state_load_diff_state_time_seconds",
+      help: "Time to load a historical diff state from the database in seconds",
       // 30s, 1m, 2m, 4m
       buckets: [30, 60, 120, 240],
     }),

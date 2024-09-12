@@ -36,7 +36,7 @@ export async function getHistoricalState(
 
   switch (strategy) {
     case StateArchiveStrategy.Snapshot: {
-      const loadStateTimer = metrics?.loadStateTime.startTimer();
+      const loadStateTimer = metrics?.loadSnapshotStateTime.startTimer();
       const state = await db.stateSnapshotArchive.getBinary(slot);
       loadStateTimer?.();
       regenTimer?.({strategy: StateArchiveStrategy.Snapshot});

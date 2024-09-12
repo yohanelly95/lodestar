@@ -1,11 +1,12 @@
 import {ssz} from "@lodestar/types";
 import {createBeaconConfig, BeaconConfig, ChainForkConfig} from "@lodestar/config";
-import {Logger} from "@lodestar/utils";
+import {formatBytes, Logger} from "@lodestar/utils";
 import {
   isWithinWeakSubjectivityPeriod,
   ensureWithinWeakSubjectivityPeriod,
   BeaconStateAllForks,
   loadState,
+  loadStateAndValidators,
 } from "@lodestar/state-transition";
 import {
   IBeaconDb,
@@ -103,11 +104,17 @@ export async function initBeaconState(
   // fetch the latest state stored in the db which will be used in all cases, if it exists, either
   //   i)  used directly as the anchor state
   //   ii) used during verification of a weak subjectivity state,
-  const {stateBytes: lastDbStateBytes, slot: lastDbSlot} = await getLastStoredState({db, diffLayers: new DiffLayers()});
-  const lastDbState =
-    lastDbStateBytes && lastDbSlot !== null && lastDbSlot !== undefined
-      ? chainForkConfig.getForkTypes(lastDbSlot).BeaconState.deserializeToViewDU(lastDbStateBytes)
-      : null;
+  const {stateBytes, slot: lastDbSlot} = await getLastStoredState({db, diffLayers: new DiffLayers()});
+  let lastDbState: BeaconStateAllForks | null = null;
+  let lastDbValidatorsBytes: Uint8Array | null = null;
+  let lastDbStateWithBytes: StateWithBytes | null = null;
+  if (stateBytes) {
+    logger.verbose("Found the last archived state", {slot: lastDbSlot, size: formatBytes(stateBytes.length)});
+    const {state, validatorsBytes} = loadStateAndValidators(chainForkConfig, stateBytes);
+    lastDbState = state;
+    lastDbValidatorsBytes = validatorsBytes;
+    lastDbStateWithBytes = {state, stateBytes: stateBytes};
+  }
 
   if (lastDbState) {
     const config = createBeaconConfig(chainForkConfig, lastDbState.genesisValidatorsRoot);

@@ -90,6 +90,7 @@ export async function putHistoricalState(
 ): Promise<void> {
   const epoch = computeEpochAtSlot(slot);
   const strategy = diffLayers.getArchiveStrategy(slot);
+  logger.info("Archiving historical state", {epoch, slot, strategy});
 
   switch (strategy) {
     case StateArchiveStrategy.Snapshot: {
@@ -146,13 +147,16 @@ export async function getLastStoredState({
   const lastStoredDiffSlot = await db.stateDiffArchive.lastKey();
   const lastStoredSnapshotSlot = await db.stateSnapshotArchive.lastKey();
 
+  logger?.info("Last archived state slots", {snapshot: lastStoredSnapshotSlot, diff: lastStoredDiffSlot});
+
   if (lastStoredDiffSlot === null && lastStoredSnapshotSlot === null) {
     logger?.verbose("State archive db is empty");
     return {stateBytes: null, slot: null};
   }
 
-  const lastStoredSlot = (lastStoredDiffSlot ?? lastStoredSnapshotSlot) as number;
+  const lastStoredSlot = Math.max(lastStoredDiffSlot ?? 0, lastStoredSnapshotSlot ?? 0);
   const strategy = diffLayers.getArchiveStrategy(lastStoredSlot);
+  logger?.verbose("Loading the last archived state", {strategy, slot: lastStoredSlot});
 
   switch (strategy) {
     case StateArchiveStrategy.Snapshot:
@@ -169,6 +173,10 @@ export async function getLastStoredState({
       };
     }
     case StateArchiveStrategy.BlockReplay:
+      if (lastStoredSlot === lastStoredSnapshotSlot) {
+        logger?.warn("Last archived snapshot is not at expected epoch boundary, possibly because of checkpoint sync.");
+        return {stateBytes: await db.stateSnapshotArchive.getBinary(lastStoredSlot), slot: lastStoredSlot};
+      }
       throw new Error(`Unexpected stored slot for a non epoch slot=${lastStoredSlot}`);
   }
 }

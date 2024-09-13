@@ -1,22 +1,29 @@
 import {Slot} from "@lodestar/types";
 import {Logger} from "@lodestar/logger";
 import {computeEpochAtSlot} from "@lodestar/state-transition";
+import {formatBytes} from "@lodestar/utils";
 import {HistoricalStateRegenMetrics, IBinaryDiffCodec, RegenErrorType} from "../types.js";
 import {IBeaconDb} from "../../../db/interface.js";
 import {DiffLayers} from "../diffLayers.js";
 import {getSnapshotStateWithFallback} from "./snapshot.js";
 
 export async function replayStateDiffs(
-  {diffs, snapshotStateBytes}: {diffs: Uint8Array[]; snapshotStateBytes: Uint8Array},
-  {codec}: {codec: IBinaryDiffCodec}
+  {diffs, snapshotStateBytes}: {diffs: {slot: Slot; diff: Uint8Array}[]; snapshotStateBytes: Uint8Array},
+  {codec, logger}: {codec: IBinaryDiffCodec; logger?: Logger}
 ): Promise<Uint8Array> {
   if (!codec.initialized) {
+    logger?.verbose("Initializing the binary diff codec.");
     await codec.init();
   }
 
   let activeStateBytes: Uint8Array = snapshotStateBytes;
   for (const intermediateStateDiff of diffs) {
-    activeStateBytes = codec.apply(activeStateBytes, intermediateStateDiff);
+    logger?.verbose("Applying state diff", {
+      slot: intermediateStateDiff.slot,
+      activeStateSize: formatBytes(activeStateBytes.byteLength),
+      diffSize: formatBytes(intermediateStateDiff.diff.byteLength),
+    });
+    activeStateBytes = codec.apply(activeStateBytes, intermediateStateDiff.diff);
   }
 
   return activeStateBytes;
@@ -68,22 +75,47 @@ export async function getDiffState(
       const loadStateTimer = metrics?.loadDiffStateTime.startTimer();
       return db.stateDiffArchive.getBinary(s).then((diff) => {
         loadStateTimer?.();
-        return diff;
+        return {slot: s, diff};
       });
     })
   );
-  const nonEmptyDiffs = diffs.filter((d) => d !== undefined && d !== null) as Uint8Array[];
+  const nonEmptyDiffs = diffs.filter((d) => d.diff !== undefined && d.diff !== null) as {
+    slot: number;
+    diff: Uint8Array;
+  }[];
 
   if (nonEmptyDiffs.length < processableDiffs.length) {
-    logger?.warn("Missing some diff state", {diffPath: diffSlots.join(","), diffs: diffSlots.join(","), slot, epoch});
+    logger?.warn("Missing some diff states", {
+      epoch,
+      slot,
+      snapshotSlot,
+      diffPath: diffSlots.join(","),
+      availableDiffs: nonEmptyDiffs.map((d) => d.slot).join(","),
+    });
     metrics?.regenErrorCount.inc({reason: RegenErrorType.loadState});
   }
 
   try {
-    const diffState = await replayStateDiffs({diffs: nonEmptyDiffs, snapshotStateBytes}, {codec});
+    logger?.verbose("Replaying state diffs", {
+      epoch,
+      slot,
+      snapshotSlot,
+      diffPath: diffSlots.join(","),
+      availableDiffs: nonEmptyDiffs.map((d) => d.slot).join(","),
+    });
+    const diffState = await replayStateDiffs({diffs: nonEmptyDiffs, snapshotStateBytes}, {codec, logger});
+
+    if (diffState.byteLength === 0) {
+      throw new Error("Some error during applying diffs");
+    }
+
     return {diffSlots, diffStateBytes: diffState};
   } catch (err) {
-    logger?.error("Can not compute the diff state", {diffSlots: diffSlots.join(","), slot, epoch}, err as Error);
+    logger?.error(
+      "Can not compute the diff state",
+      {epoch, slot, snapshotSlot, diffPath: diffSlots.join(",")},
+      err as Error
+    );
     metrics?.regenErrorCount.inc({reason: RegenErrorType.loadState});
     return {diffSlots, diffStateBytes: null};
   }

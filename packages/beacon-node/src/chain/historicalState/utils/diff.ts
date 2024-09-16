@@ -50,7 +50,7 @@ export async function getDiffState(
   const processableDiffs = [...diffSlots];
 
   // Remove the snapshot slot
-  const snapshotSlot = processableDiffs.shift();
+  let snapshotSlot = processableDiffs.shift();
 
   if (skipSlotDiff && processableDiffs[processableDiffs.length - 1] === slot) {
     processableDiffs.pop();
@@ -62,11 +62,20 @@ export async function getDiffState(
     return {diffSlots, diffStateBytes: null};
   }
 
-  const snapshotStateBytes = await getSnapshotStateWithFallback(snapshotSlot, db);
-  if (!snapshotStateBytes) {
+  const snapshot = await getSnapshotStateWithFallback(snapshotSlot, db);
+  if (!snapshot.stateBytes) {
     logger?.error("Missing the snapshot state", {snapshotSlot});
     metrics?.regenErrorCount.inc({reason: RegenErrorType.loadState});
     return {diffStateBytes: null, diffSlots};
+  }
+
+  if (snapshot.slot !== snapshotSlot) {
+    // Possibly because of checkpoint sync
+    logger?.warn("Last archived snapshot is not at expected slot", {
+      expectedSnapshotSlot: snapshotSlot,
+      availableSnapshotSlot: snapshot.slot,
+    });
+    snapshotSlot = snapshot.slot;
   }
 
   // Get all diffs except the first one which was a snapshot layer
@@ -103,7 +112,10 @@ export async function getDiffState(
       diffPath: diffSlots.join(","),
       availableDiffs: nonEmptyDiffs.map((d) => d.slot).join(","),
     });
-    const diffState = await replayStateDiffs({diffs: nonEmptyDiffs, snapshotStateBytes}, {codec, logger});
+    const diffState = await replayStateDiffs(
+      {diffs: nonEmptyDiffs, snapshotStateBytes: snapshot.stateBytes},
+      {codec, logger}
+    );
 
     if (diffState.byteLength === 0) {
       throw new Error("Some error during applying diffs");

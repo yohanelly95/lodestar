@@ -2,6 +2,7 @@ import {Slot} from "@lodestar/types";
 import {Logger} from "@lodestar/logger";
 import {BeaconConfig} from "@lodestar/config";
 import {computeEpochAtSlot, PubkeyIndexMap} from "@lodestar/state-transition";
+import {formatBytes} from "@lodestar/utils";
 import {IBeaconDb} from "../../db/interface.js";
 import {HistoricalStateRegenMetrics, IBinaryDiffCodec, StateArchiveStrategy} from "./types.js";
 import {replayBlocks} from "./utils/blockReplay.js";
@@ -99,6 +100,7 @@ export async function putHistoricalState(
       logger.verbose("State stored as snapshot", {
         epoch,
         slot,
+        snapshotSize: formatBytes(stateBytes.byteLength),
       });
       break;
     }
@@ -118,7 +120,8 @@ export async function putHistoricalState(
       logger.verbose("State stored as diff", {
         epoch,
         slot,
-        diffSize: diff.byteLength,
+        baseSize: formatBytes(diffState.byteLength),
+        diffSize: formatBytes(diff.byteLength),
       });
       break;
     }

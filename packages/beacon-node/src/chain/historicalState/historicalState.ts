@@ -9,7 +9,7 @@ import {DiffLayers} from "./diffLayers.js";
 import {BinaryDiffVCDiffCodec} from "./utils/binaryDiffVCDiffCodec.js";
 import {getDiffState} from "./utils/diff.js";
 
-const codec: IBinaryDiffCodec = new BinaryDiffVCDiffCodec();
+export const codec: IBinaryDiffCodec = new BinaryDiffVCDiffCodec();
 
 export async function getHistoricalState(
   {slot}: {slot: Slot},
@@ -162,6 +162,11 @@ export async function getLastStoredState({
     case StateArchiveStrategy.Snapshot:
       return {stateBytes: await db.stateSnapshotArchive.getBinary(lastStoredSlot), slot: lastStoredSlot};
     case StateArchiveStrategy.Diff: {
+      if (lastStoredSlot === lastStoredSnapshotSlot) {
+        logger?.warn("Last archived snapshot is not at expected epoch boundary, possibly because of checkpoint sync.");
+        return {stateBytes: await db.stateSnapshotArchive.getBinary(lastStoredSlot), slot: lastStoredSlot};
+      }
+
       const {diffStateBytes} = await getDiffState(
         {slot: lastStoredSlot, skipSlotDiff: false},
         {db, metrics, logger, diffLayers, codec}
